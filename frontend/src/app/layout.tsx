@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'LOKA — Direktori Jasa Lokal',
+  title: 'LOKA â€” Direktori Jasa Lokal',
   description: 'Platform yang menghubungkan masyarakat dengan penyedia jasa lokal untuk membuka peluang penghasilan dan mendukung SDG 1.',
 }
 

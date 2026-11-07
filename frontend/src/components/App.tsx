@@ -280,7 +280,7 @@ function About() {
             <img src={communityImage} alt="Pedagang sayur lokal menata hasil bumi di pasar" />
           </div>
           <div className="about__quote">
-            <span>“</span>
+            <span>â€œ</span>
             <p>Keahlian yang terlihat, membuka pintu kesempatan.</p>
           </div>
           <div className="dot-pattern" aria-hidden="true" />
@@ -288,7 +288,7 @@ function About() {
         <div className="about__content">
           <SectionIntro eyebrow="Tentang LOKA" title="Menghubungkan Kebutuhan dengan Potensi Lokal." />
           <p>
-            Di sekitar kita, banyak orang memiliki keterampilan yang bermanfaat—mulai dari perbaikan,
+            Di sekitar kita, banyak orang memiliki keterampilan yang bermanfaatâ€”mulai dari perbaikan,
             perawatan, hingga usaha rumahan. Namun, kesempatan mereka sering terbatas karena hanya dikenal
             lewat rekomendasi dari mulut ke mulut.
           </p>
@@ -479,7 +479,7 @@ function Footer() {
         <div className="footer__brand">
           <Logo light />
           <p>Ruang digital untuk menghubungkan kebutuhan masyarakat dengan potensi jasa lokal.</p>
-          <span className="footer__sdg">Mendukung semangat SDG 1 — Tanpa Kemiskinan</span>
+          <span className="footer__sdg">Mendukung semangat SDG 1 â€” Tanpa Kemiskinan</span>
         </div>
         <div className="footer__links">
           <div>
@@ -498,7 +498,7 @@ function Footer() {
         </div>
       </div>
       <div className="container footer__bottom">
-        <p>© {new Date().getFullYear()} LOKA. Tumbuh bersama potensi lokal.</p>
+        <p>Â© {new Date().getFullYear()} LOKA. Tumbuh bersama potensi lokal.</p>
         <p>Dibuat untuk komunitas Indonesia.</p>
       </div>
     </footer>
