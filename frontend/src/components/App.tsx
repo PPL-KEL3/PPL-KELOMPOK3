@@ -132,6 +132,9 @@ const navLinks = [
   ['Dampak', '#dampak'],
 ]
 
+// Top navigation is intentionally minimal for now.
+const headerNavLinks = navLinks.slice(0, 1)
+
 function Header() {
   const [open, setOpen] = useState(false)
 
@@ -140,7 +143,7 @@ function Header() {
       <div className="container header__inner">
         <Logo />
         <nav className="desktop-nav" aria-label="Navigasi utama">
-          {navLinks.map(([label, href]) => (
+          {headerNavLinks.map(([label, href]) => (
             <a href={href} key={href}>
               {label}
             </a>
@@ -162,7 +165,7 @@ function Header() {
       </div>
       <div className={`mobile-menu ${open ? 'mobile-menu--open' : ''}`} id="mobile-menu">
         <nav className="container" aria-label="Navigasi seluler">
-          {navLinks.map(([label, href]) => (
+          {headerNavLinks.map(([label, href]) => (
             <a href={href} key={href} onClick={() => setOpen(false)}>
               {label}
               <Icon name="arrow" size={18} />
