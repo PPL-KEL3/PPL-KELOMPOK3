@@ -1,4 +1,4 @@
-# LOKA — Sistem Informasi Direktori Jasa Lokal
+# LOKA ï¿½ Sistem Informasi Direktori Jasa Lokal
 
 LOKA adalah platform web yang menghubungkan masyarakat dengan penyedia jasa lokal untuk membuka peluang penghasilan dan mendukung SDG 1: No Poverty.
 
@@ -111,12 +111,30 @@ SUPABASE_ANON_KEY=<anon-key-supabase>
 Frontend (`frontend/.env.local`, opsional):
 
 ```env
-# Kosongkan agar browser memakai proxy same-origin /api
+# Development: kosongkan agar memakai proxy Next.js ke backend lokal.
+# Production: isi dengan URL publik backend yang dideploy terpisah.
+# Contoh: https://loka-api.vercel.app
 NEXT_PUBLIC_API_URL=
 BACKEND_URL=http://localhost:4000
 ```
 
 Jangan menaruh `SUPABASE_SERVICE_ROLE_KEY` di frontend. Implementasi ini tidak membutuhkannya.
+
+## Deployment terpisah di Vercel
+
+Deploy sebagai dua project Vercel dari repository yang sama:
+
+1. **Frontend**: set Root Directory ke `frontend`, framework **Next.js**.
+   Tambahkan `NEXT_PUBLIC_API_URL` dengan URL production backend, misalnya
+   `https://loka-api.vercel.app`.
+2. **Backend**: set Root Directory ke `backend`. Tambahkan environment variable
+   `PORT`, `NODE_ENV=production`, `FRONTEND_URL` berisi URL frontend production,
+   `COOKIE_SAME_SITE=none`, `SUPABASE_URL`, dan `SUPABASE_ANON_KEY`.
+3. Pastikan URL frontend production ditambahkan ke Supabase Authentication > URL
+   Configuration sebagai Site URL/Redirect URL.
+
+`vercel.json` root tidak diperlukan karena kedua project menggunakan root
+directory dan environment masing-masing.
 
 ### 3. Konfigurasi URL di Supabase
 

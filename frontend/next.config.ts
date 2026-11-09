@@ -15,9 +15,8 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
-    // Local development proxies /api to Express so the browser sees one origin
-    // and httpOnly cookies work without cross-site configuration. Production
-    // uses the vercel.json service rewrite.
+    // Local development proxies /api to Express so the browser sees one origin.
+    // In production, NEXT_PUBLIC_API_URL points directly to the separate API.
     if (process.env.NODE_ENV !== 'development' || process.env.NEXT_PUBLIC_API_URL) {
       return []
     }
