@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
+import Link from 'next/link'
+import { useAuth } from '@/components/auth/AuthProvider'
+import { dashboardPathFor, ROLE_LABELS } from '@/lib/auth-types'
 
 const heroImage =
   'https://images.unsplash.com/photo-1622572771591-6ca7813cc39d?auto=format&fit=crop&w=1400&q=85'
@@ -137,6 +140,28 @@ const headerNavLinks = navLinks.slice(0, 1)
 
 function Header() {
   const [open, setOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  const { user, loading, logout } = useAuth()
+
+  const accountName = user?.fullName?.trim() || user?.email || 'Akun saya'
+  const accountInitials = accountName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+
+  async function handleLogout() {
+    setLoggingOut(true)
+    try {
+      await logout()
+      setAccountOpen(false)
+      setOpen(false)
+    } finally {
+      setLoggingOut(false)
+    }
+  }
 
   return (
     <header className="site-header">
@@ -150,7 +175,47 @@ function Header() {
           ))}
         </nav>
         <div className="header__actions">
-          <ButtonLink href="#tentang">Kenali LOKA</ButtonLink>
+          {!loading && user ? (
+            <div className="account-menu">
+              <button
+                className="account-menu__trigger"
+                type="button"
+                onClick={() => setAccountOpen(!accountOpen)}
+                aria-expanded={accountOpen}
+                aria-haspopup="menu"
+              >
+                <span className="account-menu__avatar" aria-hidden="true">{accountInitials}</span>
+                <span className="account-menu__details">
+                  <strong>{accountName}</strong>
+                  <small>{ROLE_LABELS[user.role]}</small>
+                </span>
+                <span className={`account-menu__chevron ${accountOpen ? 'account-menu__chevron--open' : ''}`} aria-hidden="true">⌄</span>
+              </button>
+              {accountOpen && (
+                <div className="account-menu__dropdown" role="menu">
+                  <div className="account-menu__mobile-name">
+                    <strong>{accountName}</strong>
+                    <small>{user.email}</small>
+                  </div>
+                  <Link href={dashboardPathFor(user)} role="menuitem" onClick={() => setAccountOpen(false)}>
+                    Dashboard saya
+                  </Link>
+                  <button type="button" role="menuitem" onClick={handleLogout} disabled={loggingOut}>
+                    {loggingOut ? 'Keluar…' : 'Keluar'}
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : !loading ? (
+            <>
+              <Link href="/login" className="header__login">
+                Masuk
+              </Link>
+              <Link href="/register" className="button button--primary">
+                Daftar
+              </Link>
+            </>
+          ) : null}
           <button
             className="menu-button"
             type="button"
@@ -171,7 +236,33 @@ function Header() {
               <Icon name="arrow" size={18} />
             </a>
           ))}
-          <ButtonLink href="#tentang">Kenali LOKA</ButtonLink>
+          {user ? (
+            <>
+              <Link href={dashboardPathFor(user)} onClick={() => setOpen(false)}>
+                Dashboard saya
+                <Icon name="arrow" size={18} />
+              </Link>
+              <button className="mobile-menu__logout" type="button" onClick={handleLogout} disabled={loggingOut}>
+                {loggingOut ? 'Keluar…' : 'Keluar'}
+                <Icon name="arrow" size={18} />
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" onClick={() => setOpen(false)}>
+                Masuk
+                <Icon name="arrow" size={18} />
+              </Link>
+              <Link
+                href="/register"
+                className="button button--primary"
+                onClick={() => setOpen(false)}
+              >
+                Daftar
+                <Icon name="arrow" size={18} />
+              </Link>
+            </>
+          )}
         </nav>
       </div>
     </header>
@@ -492,6 +583,8 @@ function Footer() {
                 {label}
               </a>
             ))}
+            <Link href="/login">Masuk</Link>
+            <Link href="/register">Daftar</Link>
           </div>
           <div>
             <h3>Hubungi Kami</h3>
