@@ -28,12 +28,19 @@ import { redirectPathFor, type UserRole } from '../services/profile.service'
 
 const router = Router()
 
-function getResetPasswordRedirectUrl(): string {
-  const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(
-    /\/$/,
-    ''
-  )
-  return `${frontendUrl}/reset-password`
+function getResetPasswordRedirectUrl(req: Request): string {
+  const configuredFrontendUrl = process.env.FRONTEND_URL?.trim().replace(/\/$/, '')
+
+  // In production, fall back to the public request host when FRONTEND_URL was
+  // not configured in the deployment environment. This prevents recovery links
+  // from accidentally being sent to localhost.
+  if (process.env.NODE_ENV === 'production' && !configuredFrontendUrl) {
+    const protocol = req.get('x-forwarded-proto')?.split(',')[0].trim() || req.protocol
+    const host = req.get('x-forwarded-host')?.split(',')[0].trim() || req.get('host')
+    if (host) return `${protocol}://${host}/reset-password`
+  }
+
+  return `${configuredFrontendUrl || 'http://localhost:3000'}/reset-password`
 }
 
 function validationError(fields: Record<string, string>): AppError {
@@ -177,7 +184,7 @@ router.post(
       throw validationError({ email: emailError })
     }
 
-    await sendPasswordReset(email, getResetPasswordRedirectUrl())
+    await sendPasswordReset(email, getResetPasswordRedirectUrl(req))
 
     // Never reveal whether the email is registered.
     sendSuccess(res, {
