@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import './auth.css'
+import { ToastProvider } from '@/components/ui/ToastProvider'
+import { AuthProvider } from '@/components/auth/AuthProvider'
 
 export const metadata: Metadata = {
   title: 'LOKA — Direktori Jasa Lokal',
@@ -16,7 +19,11 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.svg" />
       </head>
-      <body>{children}</body>
+      <body>
+        <ToastProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ToastProvider>
+      </body>
     </html>
   )
 }
