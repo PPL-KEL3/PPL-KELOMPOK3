@@ -10,6 +10,17 @@ function isProduction(): boolean {
   return process.env.NODE_ENV === 'production'
 }
 
+function sameSiteValue(): 'lax' | 'strict' | 'none' {
+  const configured = process.env.COOKIE_SAME_SITE?.trim().toLowerCase()
+
+  if (configured === 'strict' || configured === 'none') return configured
+  if (configured === 'lax') return configured
+
+  // Separate production deployments are cross-origin, so browsers require
+  // SameSite=None for the frontend to send these cookies to the API.
+  return isProduction() ? 'none' : 'lax'
+}
+
 export function parseCookies(header: string | undefined): Record<string, string> {
   if (!header) return {}
 
@@ -41,7 +52,11 @@ interface CookieOptions {
 }
 
 function serializeCookie(name: string, value: string, options: CookieOptions = {}): string {
-  const parts = [`${name}=${encodeURIComponent(value)}`, 'Path=/', 'SameSite=Lax']
+  const parts = [
+    `${name}=${encodeURIComponent(value)}`,
+    'Path=/',
+    `SameSite=${sameSiteValue()}`,
+  ]
 
   if (options.httpOnly !== false) parts.push('HttpOnly')
   if (isProduction()) parts.push('Secure')
