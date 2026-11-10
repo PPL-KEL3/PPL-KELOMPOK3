@@ -4,6 +4,7 @@ import cors from 'cors'
 import healthRoutes from './routes/health.routes'
 import authRoutes from './routes/auth.routes'
 import providerRoutes from './routes/provider.routes'
+import categoryRoutes from './routes/category.routes'
 import { AppError } from './lib/errors'
 import { sendError } from './lib/http'
 
@@ -20,6 +21,7 @@ app.use(express.json({ limit: '16kb' }))
 app.use('/api', healthRoutes)
 app.use('/api', authRoutes)
 app.use('/api', providerRoutes)
+app.use('/api', categoryRoutes)
 
 app.use('/api', (_req: Request, res: Response) => {
   sendError(res, 404, 'NOT_FOUND', 'Endpoint tidak ditemukan.')
