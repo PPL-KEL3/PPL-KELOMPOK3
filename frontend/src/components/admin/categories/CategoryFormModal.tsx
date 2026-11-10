@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { AlertIcon, InfoIcon } from '@/components/ui/AuthIcons'
+import type { CategoryDataSource, CategoryMutationResult } from '@/hooks/useCategories'
 import type {
   Category,
   CategoryFormErrors,
@@ -14,16 +15,20 @@ export type CategoryModalMode = 'create' | 'edit'
 interface CategoryFormModalProps {
   open: boolean
   mode: CategoryModalMode
+  dataSource?: CategoryDataSource
+  submitting?: boolean
   initialCategory?: Category | null
   onClose: () => void
   onSubmit: (
     input: CategoryFormInput
-  ) => { ok: true; category: Category } | { ok: false; errors: CategoryFormErrors }
+  ) => Promise<CategoryMutationResult> | CategoryMutationResult
 }
 
 export function CategoryFormModal({
   open,
   mode,
+  dataSource = 'local',
+  submitting = false,
   initialCategory = null,
   onClose,
   onSubmit,
@@ -60,7 +65,7 @@ export function CategoryFormModal({
     if (!open) return
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !submitting) {
         event.preventDefault()
         onClose()
       }
@@ -68,7 +73,7 @@ export function CategoryFormModal({
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [open, onClose])
+  }, [open, onClose, submitting])
 
   if (!open) return null
 
@@ -79,12 +84,17 @@ export function CategoryFormModal({
   const modalDescription = isEditMode
     ? `Perbarui informasi untuk kategori "${initialCategory?.name ?? ''}".`
     : 'Tambahkan kategori baru untuk mengelompokkan layanan penyedia jasa di platform LOKA.'
-  const submitLabel = isEditMode ? 'Simpan Perubahan' : 'Simpan'
+  const submitLabel = submitting
+    ? 'Menyimpan...'
+    : isEditMode
+      ? 'Simpan Perubahan'
+      : 'Simpan'
 
-  function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (submitting) return
 
-    const result = onSubmit({ name, description })
+    const result = await onSubmit({ name, description })
     if (!result.ok) {
       setErrors(result.errors)
       return
@@ -97,7 +107,7 @@ export function CategoryFormModal({
     <div
       className="cat-modal-backdrop"
       onClick={(event) => {
-        if (event.target === event.currentTarget) {
+        if (event.target === event.currentTarget && !submitting) {
           onClose()
         }
       }}
@@ -128,6 +138,7 @@ export function CategoryFormModal({
             type="button"
             className="cat-modal__close"
             onClick={onClose}
+            disabled={submitting}
             aria-label="Tutup dialog form kategori"
           >
             <CloseIcon size={18} />
@@ -139,6 +150,13 @@ export function CategoryFormModal({
         </p>
 
         <form className="cat-form" onSubmit={handleFormSubmit} noValidate>
+          {errors.general && (
+            <div className="cat-form-alert" role="alert">
+              <AlertIcon size={16} />
+              <span>{errors.general}</span>
+            </div>
+          )}
+
           <div
             className={`auth-field ${errors.name ? 'auth-field--error' : ''}`}
           >
@@ -159,10 +177,15 @@ export function CategoryFormModal({
               type="text"
               className="cat-input"
               value={name}
+              disabled={submitting}
               onChange={(event) => {
                 setName(event.target.value)
-                if (errors.name) {
-                  setErrors((current) => ({ ...current, name: undefined }))
+                if (errors.name || errors.general) {
+                  setErrors((current) => ({
+                    ...current,
+                    name: undefined,
+                    general: undefined,
+                  }))
                 }
               }}
               placeholder="Contoh: Perbaikan & Pertukangan Rumah"
@@ -182,7 +205,7 @@ export function CategoryFormModal({
               </p>
             ) : (
               <p className="auth-field__hint" id="category-name-hint">
-                Gunakan nama kategori yang ringkas, jelas, dan belum terdaftar.
+                Gunakan nama kategori 2 sampai 80 karakter yang belum terdaftar.
               </p>
             )}
           </div>
@@ -207,12 +230,14 @@ export function CategoryFormModal({
               className="cat-textarea"
               rows={4}
               value={description}
+              disabled={submitting}
               onChange={(event) => {
                 setDescription(event.target.value)
-                if (errors.description) {
+                if (errors.description || errors.general) {
                   setErrors((current) => ({
                     ...current,
                     description: undefined,
+                    general: undefined,
                   }))
                 }
               }}
@@ -239,23 +264,30 @@ export function CategoryFormModal({
             )}
           </div>
 
-          <div className="cat-demo-inline-note">
-            <InfoIcon size={16} />
-            <span>
-              Mode demonstrasi: perubahan disimpan pada state lokal antarmuka dan
-              belum dikirim ke database.
-            </span>
-          </div>
+          {dataSource === 'local' && (
+            <div className="cat-demo-inline-note">
+              <InfoIcon size={16} />
+              <span>
+                Mode cadangan lokal aktif karena tabel kategori pada server
+                belum terhubung.
+              </span>
+            </div>
+          )}
 
           <div className="cat-modal__actions">
             <button
               type="button"
               className="cat-btn cat-btn--secondary"
               onClick={onClose}
+              disabled={submitting}
             >
               Batal
             </button>
-            <button type="submit" className="cat-btn cat-btn--primary">
+            <button
+              type="submit"
+              className="cat-btn cat-btn--primary"
+              disabled={submitting}
+            >
               {submitLabel}
             </button>
           </div>
@@ -264,4 +296,3 @@ export function CategoryFormModal({
     </div>
   )
 }
-

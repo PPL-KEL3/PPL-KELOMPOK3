@@ -40,7 +40,7 @@ export function CategoryTable({
         <div className="cat-skeleton-head">
           <span className="auth-spinner auth-spinner--large" aria-hidden="true" />
           <div>
-            <h3>Memuat daftar kategori jasa…</h3>
+            <h3>Memuat daftar kategori jasa...</h3>
             <p>Mohon tunggu sebentar sementara data kategori disiapkan.</p>
           </div>
         </div>
@@ -117,59 +117,79 @@ export function CategoryTable({
               <th scope="col" className="cat-col-desc">
                 Deskripsi
               </th>
+              <th scope="col" className="cat-col-usage">
+                Relasi Jasa
+              </th>
               <th scope="col" className="cat-col-actions">
                 Aksi
               </th>
             </tr>
           </thead>
           <tbody>
-            {categories.map((category, index) => (
-              <tr key={category.id} className="cat-table__row">
-                <td className="cat-cell-no" data-label="No">
-                  <span className="cat-row-number">{index + 1}</span>
-                </td>
-                <td className="cat-cell-name" data-label="Nama Kategori">
-                  <div className="cat-name-wrap">
-                    <strong className="cat-name-text">{category.name}</strong>
-                  </div>
-                </td>
-                <td className="cat-cell-desc" data-label="Deskripsi">
-                  {category.description?.trim() ? (
-                    <p className="cat-desc-text">{category.description}</p>
-                  ) : (
-                    <span className="cat-desc-empty">
-                      Belum ada deskripsi kategori
+            {categories.map((category, index) => {
+              const linkedCount = category.usageCount ?? 0
+              const isInUse = linkedCount > 0
+
+              return (
+                <tr key={category.id} className="cat-table__row">
+                  <td className="cat-cell-no" data-label="No">
+                    <span className="cat-row-number">{index + 1}</span>
+                  </td>
+                  <td className="cat-cell-name" data-label="Nama Kategori">
+                    <div className="cat-name-wrap">
+                      <strong className="cat-name-text">{category.name}</strong>
+                    </div>
+                  </td>
+                  <td className="cat-cell-desc" data-label="Deskripsi">
+                    {category.description?.trim() ? (
+                      <p className="cat-desc-text">{category.description}</p>
+                    ) : (
+                      <span className="cat-desc-empty">
+                        Belum ada deskripsi kategori
+                      </span>
+                    )}
+                  </td>
+                  <td className="cat-cell-usage" data-label="Relasi Jasa">
+                    <span
+                      className={`cat-usage-pill ${
+                        isInUse
+                          ? 'cat-usage-pill--linked'
+                          : 'cat-usage-pill--unused'
+                      }`}
+                    >
+                      {isInUse
+                        ? `${linkedCount} layanan terhubung`
+                        : 'Belum digunakan'}
                     </span>
-                  )}
-                </td>
-                <td className="cat-cell-actions" data-label="Aksi">
-                  <div className="cat-row-actions">
-                    <button
-                      type="button"
-                      className="cat-action-btn cat-action-btn--edit"
-                      onClick={() => onEditClick(category)}
-                      aria-label={`Edit kategori ${category.name}`}
-                    >
-                      <EditIcon size={15} />
-                      <span>Edit</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="cat-action-btn cat-action-btn--delete"
-                      onClick={() => onDeleteClick(category)}
-                      aria-label={`Hapus kategori ${category.name}`}
-                    >
-                      <TrashIcon size={15} />
-                      <span>Hapus</span>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="cat-cell-actions" data-label="Aksi">
+                    <div className="cat-row-actions">
+                      <button
+                        type="button"
+                        className="cat-action-btn cat-action-btn--edit"
+                        onClick={() => onEditClick(category)}
+                        aria-label={`Edit kategori ${category.name}`}
+                      >
+                        <EditIcon size={15} />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="cat-action-btn cat-action-btn--delete"
+                        onClick={() => onDeleteClick(category)}
+                        aria-label={`Hapus kategori ${category.name}`}
+                      >
+                        <TrashIcon size={15} />
+                        <span>Hapus</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
     </div>
   )
 }
-

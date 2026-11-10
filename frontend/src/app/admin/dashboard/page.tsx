@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 
 export const metadata: Metadata = {
-  title: 'Dashboard Admin — LOKA',
+  title: 'Dashboard Admin - LOKA',
 }
 
 export default function AdminDashboardPage() {
@@ -10,9 +11,27 @@ export default function AdminDashboardPage() {
     <DashboardShell
       eyebrow="Dashboard Administrator"
       title="Ruang operasional LOKA."
-      description="Akun admin hanya dapat diberikan oleh pihak yang berwenang. Pengelolaan kategori, verifikasi penyedia jasa, dan pemantauan aktivitas akan tersedia pada tahap pengembangan berikutnya."
+      description="Kelola kategori direktori jasa, verifikasi penyedia jasa, dan pantau operasional platform LOKA."
     >
       <section className="dash-grid">
+        <article className="dash-card">
+          <span className="dash-card__eyebrow">Direktori Layanan</span>
+          <h2>Manajemen Kategori Jasa</h2>
+          <p>
+            Tambah, perbarui, dan hapus kategori jasa agar layanan penyedia
+            tersusun rapi dan mudah ditemukan pelanggan.
+          </p>
+          <div style={{ marginTop: '16px' }}>
+            <Link
+              href="/admin/categories"
+              className="dash-logout"
+              style={{ display: 'inline-flex', textDecoration: 'none' }}
+            >
+              Buka Manajemen Kategori
+            </Link>
+          </div>
+        </article>
+
         <article className="dash-card">
           <span className="dash-card__eyebrow">Kontrol akses</span>
           <h2>Area terbatas</h2>

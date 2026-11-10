@@ -1,4 +1,5 @@
 import type { AuthUser } from './auth-types'
+import type { Category } from '@/types/category'
 
 export class ApiError extends Error {
   readonly status: number
@@ -173,5 +174,63 @@ export const authApi = {
     return request<VerificationResult>('/provider/request-verification', {
       method: 'POST',
     })
+  },
+}
+
+export interface CategoryListResult {
+  categories: Category[]
+}
+
+export interface CategoryItemResult {
+  category: Category
+  message?: string
+}
+
+export interface CategoryDeleteApiResult {
+  category: Category
+  deletedId: string
+  message: string
+}
+
+export interface CategoryMutationPayload {
+  name: string
+  description: string | null
+}
+
+export const categoryApi = {
+  list() {
+    return request<CategoryListResult>('/categories')
+  },
+
+  getById(id: string) {
+    return request<{ category: Category }>(
+      `/categories/${encodeURIComponent(id)}`
+    )
+  },
+
+  create(input: CategoryMutationPayload) {
+    return request<CategoryItemResult>('/categories', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  },
+
+  update(id: string, input: Partial<CategoryMutationPayload>) {
+    return request<CategoryItemResult>(
+      `/categories/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }
+    )
+  },
+
+  remove(id: string) {
+    return request<CategoryDeleteApiResult>(
+      `/categories/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+      }
+    )
   },
 }

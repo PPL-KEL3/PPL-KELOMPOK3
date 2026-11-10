@@ -8,6 +8,8 @@ import { CloseIcon, TrashIcon } from './CategoryIcons'
 interface DeleteCategoryDialogProps {
   open: boolean
   category: Category | null
+  submitting?: boolean
+  errorMessage?: string | null
   onCancel: () => void
   onConfirm: (category: Category) => void
 }
@@ -15,6 +17,8 @@ interface DeleteCategoryDialogProps {
 export function DeleteCategoryDialog({
   open,
   category,
+  submitting = false,
+  errorMessage = null,
   onCancel,
   onConfirm,
 }: DeleteCategoryDialogProps) {
@@ -25,7 +29,7 @@ export function DeleteCategoryDialog({
     if (!open) return
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !submitting) {
         event.preventDefault()
         onCancel()
       }
@@ -33,15 +37,18 @@ export function DeleteCategoryDialog({
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [open, onCancel])
+  }, [open, onCancel, submitting])
 
   if (!open || !category) return null
+
+  const linkedServicesCount = category.usageCount ?? 0
+  const isBlockedByRelation = linkedServicesCount > 0
 
   return (
     <div
       className="cat-modal-backdrop"
       onClick={(event) => {
-        if (event.target === event.currentTarget) {
+        if (event.target === event.currentTarget && !submitting) {
           onCancel()
         }
       }}
@@ -63,10 +70,14 @@ export function DeleteCategoryDialog({
             </span>
             <div>
               <span className="dash-card__eyebrow cat-eyebrow--danger">
-                Konfirmasi Penghapusan
+                {isBlockedByRelation
+                  ? 'Perlindungan Relasi Jasa'
+                  : 'Konfirmasi Penghapusan'}
               </span>
               <h2 id={titleId} className="cat-modal__title">
-                Hapus Kategori Jasa?
+                {isBlockedByRelation
+                  ? 'Kategori Masih Digunakan'
+                  : 'Hapus Kategori Jasa?'}
               </h2>
             </div>
           </div>
@@ -75,6 +86,7 @@ export function DeleteCategoryDialog({
             type="button"
             className="cat-modal__close"
             onClick={onCancel}
+            disabled={submitting}
             aria-label="Tutup dialog konfirmasi hapus"
           >
             <CloseIcon size={18} />
@@ -83,7 +95,9 @@ export function DeleteCategoryDialog({
 
         <div id={descId} className="cat-delete-body">
           <p className="cat-delete-lead">
-            Anda akan menghapus kategori berikut dari daftar kategori jasa LOKA:
+            {isBlockedByRelation
+              ? 'Kategori berikut tidak dapat dihapus karena masih terhubung dengan layanan jasa aktif:'
+              : 'Anda akan menghapus kategori berikut dari daftar kategori jasa LOKA:'}
           </p>
 
           <div className="cat-delete-target">
@@ -93,11 +107,32 @@ export function DeleteCategoryDialog({
             )}
           </div>
 
-          <p className="cat-delete-warning">
-            Tindakan penghapusan ini perlu dikonfirmasi terlebih dahulu. Pastikan
-            kategori ini memang tidak lagi diperlukan. Pada tahap demonstrasi UI
-            saat ini, penghapusan hanya memengaruhi state lokal sementara.
-          </p>
+          {isBlockedByRelation ? (
+            <div className="cat-relation-block" role="alert">
+              <AlertIcon size={16} />
+              <div>
+                <strong>
+                  Terhubung dengan {linkedServicesCount} layanan jasa
+                </strong>
+                <p>
+                  Pindahkan atau hapus layanan jasa pada kategori ini terlebih
+                  dahulu sebelum menghapus kategori.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="cat-delete-warning">
+              Kategori ini belum terhubung ke layanan jasa mana pun dan aman
+              untuk dihapus.
+            </p>
+          )}
+
+          {errorMessage && (
+            <div className="cat-form-alert" role="alert">
+              <AlertIcon size={16} />
+              <span>{errorMessage}</span>
+            </div>
+          )}
         </div>
 
         <div className="cat-modal__actions">
@@ -105,20 +140,23 @@ export function DeleteCategoryDialog({
             type="button"
             className="cat-btn cat-btn--secondary"
             onClick={onCancel}
+            disabled={submitting}
           >
-            Batal
+            {isBlockedByRelation ? 'Tutup' : 'Batal'}
           </button>
-          <button
-            type="button"
-            className="cat-btn cat-btn--danger"
-            onClick={() => onConfirm(category)}
-          >
-            <TrashIcon size={16} />
-            <span>Hapus</span>
-          </button>
+          {!isBlockedByRelation && (
+            <button
+              type="button"
+              className="cat-btn cat-btn--danger"
+              onClick={() => onConfirm(category)}
+              disabled={submitting}
+            >
+              <TrashIcon size={16} />
+              <span>{submitting ? 'Menghapus...' : 'Hapus'}</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
   )
 }
-

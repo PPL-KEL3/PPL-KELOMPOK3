@@ -109,18 +109,32 @@ grant select on public.categories to anon, authenticated;
 grant insert, update, delete on public.categories to authenticated;
 
 -- ---------------------------------------------------------------------------
--- Status Perlindungan Relasi `ON DELETE RESTRICT` (Belum Diterapkan di TPR-26)
+-- Pemeriksaan Relasi Kategori dengan Layanan Jasa (TPR-27)
 -- ---------------------------------------------------------------------------
--- PENTING: Perlindungan foreign key `ON DELETE RESTRICT` terhadap tabel layanan
--- jasa BELUM diterapkan pada migration ini karena tabel layanan jasa beserta
--- relasinya masih menjadi bagian pekerjaan PBI-02 dan subtask TPR-27.
--- Migration ini tidak membuat atau mengubah tabel layanan jasa.
---
--- Pada saat PBI-02 dan TPR-27 dikerjakan nanti, kolom `category_id` pada tabel
--- layanan jasa perlu diarahkan ke `public.categories (id)` dengan aturan:
---
---   category_id uuid not null references public.categories (id) on delete restrict
---
--- Di sisi kode backend (`category.service.ts`), penanganan SQLSTATE `23503`
--- (`foreign_key_violation` -> HTTP `409 Conflict` / `CATEGORY_IN_USE`) sudah
--- disiapkan terlebih dahulu agar langsung aktif begitu relasi diterapkan pada TPR-27.
+-- Blok DO di bawah ini bersifat idempoten:
+-- 1. Jika tabel `public.services` sudah tersedia dan memiliki kolom `category_id`,
+--    constraint `services_category_id_fkey` (`ON DELETE RESTRICT`) otomatis
+--    dipastikan aktif agar kategori yang sedang digunakan tidak dapat dihapus.
+-- 2. Jika tabel `public.services` belum dibuat (karena dikerjakan pada PBI-02 / TPR-2),
+--    migrasi ini tetap berjalan aman tanpa error.
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'services'
+      and column_name = 'category_id'
+  ) and not exists (
+    select 1
+    from pg_constraint
+    where conname = 'services_category_id_fkey'
+  ) then
+    alter table public.services
+      add constraint services_category_id_fkey
+      foreign key (category_id)
+      references public.categories (id)
+      on delete restrict;
+  end if;
+end;
+$$;

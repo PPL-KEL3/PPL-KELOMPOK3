@@ -16,7 +16,9 @@ export function CategoryManagementClient() {
   const toast = useToast()
   const {
     categories,
+    dataSource,
     loading,
+    mutating,
     error,
     hasLocalChanges,
     lastActionNotice,
@@ -31,6 +33,7 @@ export function CategoryManagementClient() {
   const [formModalMode, setFormModalMode] = useState<CategoryModalMode>('create')
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   function handleOpenCreateModal() {
     setSelectedCategory(null)
@@ -49,50 +52,48 @@ export function CategoryManagementClient() {
     setSelectedCategory(null)
   }
 
-  function handleFormSubmit(input: CategoryFormInput) {
+  async function handleFormSubmit(input: CategoryFormInput) {
     if (formModalMode === 'edit' && selectedCategory) {
-      const result = updateCategory(selectedCategory.id, input)
+      const result = await updateCategory(selectedCategory.id, input)
       if (result.ok) {
-        toast.info(
-          `Kategori "${result.category.name}" diperbarui sementara pada state lokal (belum tersimpan ke database).`
-        )
+        toast.success(result.message)
       }
       return result
     }
 
-    const result = createCategory(input)
+    const result = await createCategory(input)
     if (result.ok) {
-      toast.info(
-        `Kategori "${result.category.name}" ditambahkan sementara pada state lokal (belum tersimpan ke database).`
-      )
+      toast.success(result.message)
     }
     return result
   }
 
   function handleOpenDeleteDialog(category: Category) {
+    setDeleteError(null)
     setCategoryToDelete(category)
   }
 
   function handleCancelDelete() {
+    setDeleteError(null)
     setCategoryToDelete(null)
   }
 
-  function handleConfirmDelete(category: Category) {
-    const result = deleteCategory(category.id)
-    setCategoryToDelete(null)
+  async function handleConfirmDelete(category: Category) {
+    const result = await deleteCategory(category.id)
 
     if (result.ok) {
-      toast.info(
-        `Kategori "${result.deletedCategory.name}" dihapus sementara dari state lokal (belum mengubah database).`
-      )
+      setDeleteError(null)
+      setCategoryToDelete(null)
+      toast.success(result.message)
     } else {
+      setDeleteError(result.message)
       toast.error(result.message)
     }
   }
 
   function handleResetDemo() {
     resetMockCategories()
-    toast.info('Data kategori dikembalikan ke data demonstrasi awal.')
+    toast.info('Daftar kategori dikembalikan ke data awal.')
   }
 
   return (
@@ -108,15 +109,21 @@ export function CategoryManagementClient() {
             <span>Kembali ke Dashboard Admin</span>
           </Link>
 
-          <div className="cat-demo-pill" role="status">
-            <InfoIcon size={15} />
-            <span>
-              Mode demonstrasi — perubahan belum tersimpan ke database.
-            </span>
-          </div>
+          {dataSource === 'local' ? (
+            <div className="cat-demo-pill" role="status">
+              <InfoIcon size={15} />
+              <span>
+                Mode cadangan lokal aktif (menunggu koneksi tabel database).
+              </span>
+            </div>
+          ) : (
+            <div className="cat-api-pill" role="status">
+              <span>Terhubung ke API Kategori LOKA</span>
+            </div>
+          )}
         </div>
 
-        {hasLocalChanges && lastActionNotice && (
+        {dataSource === 'local' && hasLocalChanges && lastActionNotice && (
           <div className="cat-local-feedback" role="status" aria-live="polite">
             <div className="cat-local-feedback__copy">
               <InfoIcon size={17} />
@@ -128,7 +135,7 @@ export function CategoryManagementClient() {
               onClick={handleResetDemo}
             >
               <RefreshIcon size={14} />
-              <span>Reset Data Demo</span>
+              <span>Reset Data Awal</span>
             </button>
           </div>
         )}
@@ -172,6 +179,8 @@ export function CategoryManagementClient() {
         <CategoryFormModal
           open={formModalOpen}
           mode={formModalMode}
+          dataSource={dataSource}
+          submitting={mutating}
           initialCategory={selectedCategory}
           onClose={handleCloseFormModal}
           onSubmit={handleFormSubmit}
@@ -180,6 +189,8 @@ export function CategoryManagementClient() {
         <DeleteCategoryDialog
           open={Boolean(categoryToDelete)}
           category={categoryToDelete}
+          submitting={mutating}
+          errorMessage={deleteError}
           onCancel={handleCancelDelete}
           onConfirm={handleConfirmDelete}
         />
@@ -187,4 +198,3 @@ export function CategoryManagementClient() {
     </DashboardShell>
   )
 }
-

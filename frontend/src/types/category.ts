@@ -2,6 +2,7 @@ export interface Category {
   id: string
   name: string
   description: string | null
+  usageCount?: number
   createdAt?: string
   updatedAt?: string
 }
@@ -14,5 +15,6 @@ export interface CategoryFormInput {
 export interface CategoryFormErrors {
   name?: string
   description?: string
+  general?: string
 }
 
