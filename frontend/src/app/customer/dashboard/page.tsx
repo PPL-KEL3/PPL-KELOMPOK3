@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
+import { PublishedServicesCatalog } from '@/components/customer/PublishedServicesCatalog'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 
 export const metadata: Metadata = {
-  title: 'Dashboard Customer — LOKA',
+  title: 'Dashboard Customer - LOKA',
 }
 
 export default function CustomerDashboardPage() {
@@ -10,7 +11,7 @@ export default function CustomerDashboardPage() {
     <DashboardShell
       eyebrow="Dashboard Customer"
       title="Selamat datang di ruang pelanggan LOKA."
-      description="Akun kamu aktif dan siap digunakan untuk mencari penyedia jasa lokal. Fitur pencarian, booking, dan pembayaran akan tersedia pada tahap pengembangan berikutnya."
+      description="Temukan layanan dari penyedia jasa lokal terverifikasi di sekitarmu."
     >
       <section className="dash-grid">
         <article className="dash-card">
@@ -23,14 +24,16 @@ export default function CustomerDashboardPage() {
         </article>
 
         <article className="dash-card">
-          <span className="dash-card__eyebrow">Apa berikutnya?</span>
-          <h2>Jelajahi potensi sekitar</h2>
+          <span className="dash-card__eyebrow">Katalog Publik</span>
+          <h2>Jelajahi jasa terpublikasi</h2>
           <p>
-            Kembali ke beranda untuk mengenal LOKA lebih dekat. Halaman dashboard ini
-            akan diisi dengan fitur customer pada sprint berikutnya.
+            Seluruh layanan aktif yang dipublikasikan oleh penyedia jasa
+            terverifikasi ditampilkan pada katalog di bawah ini.
           </p>
         </article>
       </section>
+
+      <PublishedServicesCatalog />
     </DashboardShell>
   )
 }
