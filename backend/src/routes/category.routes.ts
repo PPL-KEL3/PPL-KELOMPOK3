@@ -18,8 +18,6 @@ import {
   type UpdateCategoryInput,
 } from '../services/category.service'
 
-const router = Router()
-
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -165,75 +163,93 @@ export const requireAdmin: RequestHandler = (
   next()
 }
 
-router.get(
-  '/categories',
-  asyncHandler(async (_req, res) => {
-    const categories = await listCategories()
-    sendSuccess(res, { categories })
-  })
-)
+export function createCategoryRouter(
+  authMiddleware: RequestHandler = requireAuth
+): Router {
+  const router = Router()
 
-router.get(
-  '/categories/:id',
-  asyncHandler(async (req, res) => {
-    const id = parseCategoryId(req.params.id)
-    const category = await getCategoryById(id)
-    sendSuccess(res, { category })
-  })
-)
+  router.get(
+    '/categories',
+    asyncHandler(async (_req, res) => {
+      const categories = await listCategories()
+      sendSuccess(res, { categories })
+    })
+  )
 
-router.post(
-  '/categories',
-  requireAuth,
-  requireAdmin,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
-    const payload = parseCreatePayload(requestBody(req))
-    const category = await createCategory(payload, auth.accessToken)
+  router.get(
+    '/categories/:id',
+    asyncHandler(async (req, res) => {
+      const id = parseCategoryId(req.params.id)
+      const category = await getCategoryById(id)
+      sendSuccess(res, { category })
+    })
+  )
 
-    sendSuccess(
-      res,
-      {
+  router.post(
+    '/categories',
+    authMiddleware,
+    requireAdmin,
+    asyncHandler(async (req, res) => {
+      const auth = req.auth!
+      const payload = parseCreatePayload(requestBody(req))
+      const category = await createCategory(payload, auth.accessToken)
+
+      sendSuccess(
+        res,
+        {
+          category,
+          message: 'Kategori jasa berhasil ditambahkan.',
+        },
+        201
+      )
+    })
+  )
+
+  const handleUpdateCategory = (requireFullPayload: boolean) =>
+    asyncHandler(async (req, res) => {
+      const auth = req.auth!
+      const id = parseCategoryId(req.params.id)
+      const payload = parseUpdatePayload(requestBody(req), requireFullPayload)
+      const category = await updateCategory(id, payload, auth.accessToken)
+
+      sendSuccess(res, {
         category,
-        message: 'Kategori jasa berhasil ditambahkan.',
-      },
-      201
-    )
-  })
-)
-
-const handleUpdateCategory = (requireFullPayload: boolean) =>
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
-    const id = parseCategoryId(req.params.id)
-    const payload = parseUpdatePayload(requestBody(req), requireFullPayload)
-    const category = await updateCategory(id, payload, auth.accessToken)
-
-    sendSuccess(res, {
-      category,
-      message: 'Kategori jasa berhasil diperbarui.',
+        message: 'Kategori jasa berhasil diperbarui.',
+      })
     })
-  })
 
-router.patch('/categories/:id', requireAuth, requireAdmin, handleUpdateCategory(false))
-router.put('/categories/:id', requireAuth, requireAdmin, handleUpdateCategory(true))
+  router.patch(
+    '/categories/:id',
+    authMiddleware,
+    requireAdmin,
+    handleUpdateCategory(false)
+  )
+  router.put(
+    '/categories/:id',
+    authMiddleware,
+    requireAdmin,
+    handleUpdateCategory(true)
+  )
 
-router.delete(
-  '/categories/:id',
-  requireAuth,
-  requireAdmin,
-  asyncHandler(async (req, res) => {
-    const auth = req.auth!
-    const id = parseCategoryId(req.params.id)
-    const category = await deleteCategory(id, auth.accessToken)
+  router.delete(
+    '/categories/:id',
+    authMiddleware,
+    requireAdmin,
+    asyncHandler(async (req, res) => {
+      const auth = req.auth!
+      const id = parseCategoryId(req.params.id)
+      const category = await deleteCategory(id, auth.accessToken)
 
-    sendSuccess(res, {
-      category,
-      deletedId: category.id,
-      message: 'Kategori jasa berhasil dihapus.',
+      sendSuccess(res, {
+        category,
+        deletedId: category.id,
+        message: 'Kategori jasa berhasil dihapus.',
+      })
     })
-  })
-)
+  )
 
-export default router
+  return router
+}
+
+export default createCategoryRouter()
 
