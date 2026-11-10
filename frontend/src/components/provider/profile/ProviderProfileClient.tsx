@@ -9,6 +9,7 @@ import { useProviderProfile } from '@/hooks/useProviderProfile'
 import type { ProviderProfileFormInput } from '@/types/provider'
 import { ExternalLinkIcon } from './ProfileIcons'
 import { ProviderProfileForm } from './ProviderProfileForm'
+import { ServiceAreasCard } from './ServiceAreasCard'
 
 export function ProviderProfileClient() {
   const toast = useToast()
@@ -134,6 +135,8 @@ export function ProviderProfileClient() {
             </>
           )}
         </section>
+
+        {profile && <ServiceAreasCard />}
       </div>
     </DashboardShell>
   )

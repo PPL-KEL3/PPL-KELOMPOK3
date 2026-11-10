@@ -5,18 +5,25 @@ import { asString } from '../lib/validation'
 import { requireAuth } from '../middleware/auth.middleware'
 import { listPublicServices } from '../services/service-listing.service'
 import {
+  createServiceArea,
+  deleteServiceArea,
   getMyProviderProfile,
   getPublicProviderProfile,
+  isValidRadiusKm,
   isValidWhatsAppNumber,
+  listMyServiceAreas,
   normalizeBusinessName,
   normalizeOperatingHours,
+  normalizeServiceAreaName,
   normalizeWhatsAppNumber,
   updateMyProviderProfile,
+  updateServiceArea,
   upsertMyProviderProfile,
   validateOperatingHours,
   type OperatingHours,
   type ProviderProfileUpdateInput,
   type ProviderProfileWriteInput,
+  type ServiceAreaInput,
 } from '../services/provider-profile.service'
 
 const UUID_PATTERN =
@@ -29,6 +36,8 @@ const MIN_ADDRESS_LENGTH = 5
 const MAX_ADDRESS_LENGTH = 255
 const MIN_SERVICE_AREA_LENGTH = 3
 const MAX_SERVICE_AREA_LENGTH = 100
+const MIN_RADIUS_KM = 1
+const MAX_RADIUS_KM = 100
 
 function requestBody(req: Request): Record<string, unknown> {
   return (req.body ?? {}) as Record<string, unknown>
@@ -87,6 +96,106 @@ function parseProviderId(rawId: unknown): string {
     )
   }
   return id
+}
+
+function parseServiceAreaId(rawId: unknown): string {
+  const id = asString(rawId).trim()
+  if (!id || !UUID_PATTERN.test(id)) {
+    throw new AppError(
+      400,
+      'INVALID_SERVICE_AREA_ID',
+      'Format ID wilayah layanan tidak valid.'
+    )
+  }
+  return id
+}
+
+function validateServiceAreaName(
+  raw: unknown,
+  errors: Record<string, string>
+): string {
+  const areaName = normalizeServiceAreaName(asString(raw))
+
+  if (!areaName) {
+    errors.areaName = 'Nama wilayah layanan wajib diisi.'
+  } else if (areaName.length < MIN_SERVICE_AREA_LENGTH) {
+    errors.areaName = `Nama wilayah layanan minimal terdiri dari ${MIN_SERVICE_AREA_LENGTH} karakter.`
+  } else if (areaName.length > MAX_SERVICE_AREA_LENGTH) {
+    errors.areaName = `Nama wilayah layanan maksimal ${MAX_SERVICE_AREA_LENGTH} karakter.`
+  }
+
+  return areaName
+}
+
+function validateRadiusKm(
+  raw: unknown,
+  errors: Record<string, string>
+): number {
+  if (
+    raw === undefined ||
+    raw === null ||
+    (typeof raw === 'string' && raw.trim() === '')
+  ) {
+    errors.radiusKm = 'Radius layanan wajib diisi.'
+    return 0
+  }
+
+  const radiusKm = typeof raw === 'number' ? raw : Number(String(raw).trim())
+
+  if (!Number.isFinite(radiusKm)) {
+    errors.radiusKm = 'Radius layanan harus berupa angka.'
+    return 0
+  }
+
+  if (!isValidRadiusKm(radiusKm)) {
+    errors.radiusKm = `Radius layanan harus antara ${MIN_RADIUS_KM} dan ${MAX_RADIUS_KM} km.`
+  }
+
+  return radiusKm
+}
+
+function parseServiceAreaCreatePayload(
+  body: Record<string, unknown>
+): ServiceAreaInput {
+  const errors: Record<string, string> = {}
+  const areaName = validateServiceAreaName(body.areaName, errors)
+  const radiusKm = validateRadiusKm(body.radiusKm, errors)
+
+  if (Object.keys(errors).length > 0) {
+    throw validationError(errors)
+  }
+
+  return { areaName, radiusKm }
+}
+
+function parseServiceAreaUpdatePayload(
+  body: Record<string, unknown>
+): Partial<ServiceAreaInput> {
+  const hasAreaName = hasOwn(body, 'areaName')
+  const hasRadiusKm = hasOwn(body, 'radiusKm')
+
+  if (!hasAreaName && !hasRadiusKm) {
+    throw validationError({
+      areaName: 'Minimal satu data wilayah layanan harus diisi untuk pembaruan.',
+    })
+  }
+
+  const errors: Record<string, string> = {}
+  const payload: Partial<ServiceAreaInput> = {}
+
+  if (hasAreaName) {
+    payload.areaName = validateServiceAreaName(body.areaName, errors)
+  }
+
+  if (hasRadiusKm) {
+    payload.radiusKm = validateRadiusKm(body.radiusKm, errors)
+  }
+
+  if (Object.keys(errors).length > 0) {
+    throw validationError(errors)
+  }
+
+  return payload
 }
 
 function validateBusinessName(
@@ -375,6 +484,87 @@ export function createProviderProfileRouter(
       sendSuccess(res, {
         profile,
         message: 'Profil penyedia berhasil diperbarui.',
+      })
+    })
+  )
+
+  router.get(
+    '/providers/me/service-areas',
+    authMiddleware,
+    requireProviderRole,
+    asyncHandler(async (req, res) => {
+      const auth = req.auth!
+      const serviceAreas = await listMyServiceAreas(
+        auth.profile.id,
+        auth.accessToken
+      )
+
+      sendSuccess(res, { serviceAreas })
+    })
+  )
+
+  router.post(
+    '/providers/me/service-areas',
+    authMiddleware,
+    requireProviderRole,
+    asyncHandler(async (req, res) => {
+      const auth = req.auth!
+      const payload = parseServiceAreaCreatePayload(requestBody(req))
+      const result = await createServiceArea(
+        auth.profile.id,
+        payload,
+        auth.accessToken
+      )
+
+      sendSuccess(
+        res,
+        {
+          ...result,
+          message: 'Wilayah layanan berhasil ditambahkan.',
+        },
+        201
+      )
+    })
+  )
+
+  router.patch(
+    '/providers/me/service-areas/:areaId',
+    authMiddleware,
+    requireProviderRole,
+    asyncHandler(async (req, res) => {
+      const auth = req.auth!
+      const areaId = parseServiceAreaId(req.params.areaId)
+      const payload = parseServiceAreaUpdatePayload(requestBody(req))
+      const result = await updateServiceArea(
+        auth.profile.id,
+        areaId,
+        payload,
+        auth.accessToken
+      )
+
+      sendSuccess(res, {
+        ...result,
+        message: 'Wilayah layanan berhasil diperbarui.',
+      })
+    })
+  )
+
+  router.delete(
+    '/providers/me/service-areas/:areaId',
+    authMiddleware,
+    requireProviderRole,
+    asyncHandler(async (req, res) => {
+      const auth = req.auth!
+      const areaId = parseServiceAreaId(req.params.areaId)
+      const result = await deleteServiceArea(
+        auth.profile.id,
+        areaId,
+        auth.accessToken
+      )
+
+      sendSuccess(res, {
+        ...result,
+        message: 'Wilayah layanan berhasil dihapus.',
       })
     })
   )

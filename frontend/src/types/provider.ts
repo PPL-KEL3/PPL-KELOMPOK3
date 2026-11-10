@@ -33,6 +33,12 @@ export interface ProviderCategory {
   name: string
 }
 
+export interface ServiceArea {
+  id: string
+  areaName: string
+  radiusKm: number
+}
+
 export interface ProviderProfile {
   id: string
   businessName: string
@@ -40,6 +46,7 @@ export interface ProviderProfile {
   whatsappNumber: string
   address: string
   serviceArea: string
+  serviceAreas: ServiceArea[]
   operatingHours: OperatingHours
   primaryCategory: ProviderCategory
   isPublic: boolean
@@ -67,5 +74,16 @@ export interface ProviderProfileFormErrors {
   operatingHours?: string
   primaryCategoryId?: string
   isPublic?: string
+  general?: string
+}
+
+export interface ServiceAreaFormInput {
+  areaName: string
+  radiusKm: string
+}
+
+export interface ServiceAreaFormErrors {
+  areaName?: string
+  radiusKm?: string
   general?: string
 }

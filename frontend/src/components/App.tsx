@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
+import Link from 'next/link'
+import { useAuth } from '@/components/auth/AuthProvider'
+import { dashboardPathFor, ROLE_LABELS } from '@/lib/auth-types'
 
 const heroImage =
   'https://images.unsplash.com/photo-1622572771591-6ca7813cc39d?auto=format&fit=crop&w=1400&q=85'
@@ -132,22 +135,87 @@ const navLinks = [
   ['Dampak', '#dampak'],
 ]
 
+// Top navigation is intentionally minimal for now.
+const headerNavLinks = navLinks.slice(0, 1)
+
 function Header() {
   const [open, setOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  const { user, loading, logout } = useAuth()
+
+  const accountName = user?.fullName?.trim() || user?.email || 'Akun saya'
+  const accountInitials = accountName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+
+  async function handleLogout() {
+    setLoggingOut(true)
+    try {
+      await logout()
+      setAccountOpen(false)
+      setOpen(false)
+    } finally {
+      setLoggingOut(false)
+    }
+  }
 
   return (
     <header className="site-header">
       <div className="container header__inner">
         <Logo />
         <nav className="desktop-nav" aria-label="Navigasi utama">
-          {navLinks.map(([label, href]) => (
+          {headerNavLinks.map(([label, href]) => (
             <a href={href} key={href}>
               {label}
             </a>
           ))}
         </nav>
         <div className="header__actions">
-          <ButtonLink href="#tentang">Kenali LOKA</ButtonLink>
+          {!loading && user ? (
+            <div className="account-menu">
+              <button
+                className="account-menu__trigger"
+                type="button"
+                onClick={() => setAccountOpen(!accountOpen)}
+                aria-expanded={accountOpen}
+                aria-haspopup="menu"
+              >
+                <span className="account-menu__avatar" aria-hidden="true">{accountInitials}</span>
+                <span className="account-menu__details">
+                  <strong>{accountName}</strong>
+                  <small>{ROLE_LABELS[user.role]}</small>
+                </span>
+                <span className={`account-menu__chevron ${accountOpen ? 'account-menu__chevron--open' : ''}`} aria-hidden="true">âŒ„</span>
+              </button>
+              {accountOpen && (
+                <div className="account-menu__dropdown" role="menu">
+                  <div className="account-menu__mobile-name">
+                    <strong>{accountName}</strong>
+                    <small>{user.email}</small>
+                  </div>
+                  <Link href={dashboardPathFor(user)} role="menuitem" onClick={() => setAccountOpen(false)}>
+                    Dashboard saya
+                  </Link>
+                  <button type="button" role="menuitem" onClick={handleLogout} disabled={loggingOut}>
+                    {loggingOut ? 'Keluarâ€¦' : 'Keluar'}
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : !loading ? (
+            <>
+              <Link href="/login" className="header__login">
+                Masuk
+              </Link>
+              <Link href="/register" className="button button--primary">
+                Daftar
+              </Link>
+            </>
+          ) : null}
           <button
             className="menu-button"
             type="button"
@@ -162,13 +230,39 @@ function Header() {
       </div>
       <div className={`mobile-menu ${open ? 'mobile-menu--open' : ''}`} id="mobile-menu">
         <nav className="container" aria-label="Navigasi seluler">
-          {navLinks.map(([label, href]) => (
+          {headerNavLinks.map(([label, href]) => (
             <a href={href} key={href} onClick={() => setOpen(false)}>
               {label}
               <Icon name="arrow" size={18} />
             </a>
           ))}
-          <ButtonLink href="#tentang">Kenali LOKA</ButtonLink>
+          {user ? (
+            <>
+              <Link href={dashboardPathFor(user)} onClick={() => setOpen(false)}>
+                Dashboard saya
+                <Icon name="arrow" size={18} />
+              </Link>
+              <button className="mobile-menu__logout" type="button" onClick={handleLogout} disabled={loggingOut}>
+                {loggingOut ? 'Keluarâ€¦' : 'Keluar'}
+                <Icon name="arrow" size={18} />
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" onClick={() => setOpen(false)}>
+                Masuk
+                <Icon name="arrow" size={18} />
+              </Link>
+              <Link
+                href="/register"
+                className="button button--primary"
+                onClick={() => setOpen(false)}
+              >
+                Daftar
+                <Icon name="arrow" size={18} />
+              </Link>
+            </>
+          )}
         </nav>
       </div>
     </header>
@@ -280,7 +374,7 @@ function About() {
             <img src={communityImage} alt="Pedagang sayur lokal menata hasil bumi di pasar" />
           </div>
           <div className="about__quote">
-            <span>“</span>
+            <span>â€œ</span>
             <p>Keahlian yang terlihat, membuka pintu kesempatan.</p>
           </div>
           <div className="dot-pattern" aria-hidden="true" />
@@ -288,7 +382,7 @@ function About() {
         <div className="about__content">
           <SectionIntro eyebrow="Tentang LOKA" title="Menghubungkan Kebutuhan dengan Potensi Lokal." />
           <p>
-            Di sekitar kita, banyak orang memiliki keterampilan yang bermanfaat—mulai dari perbaikan,
+            Di sekitar kita, banyak orang memiliki keterampilan yang bermanfaatâ€”mulai dari perbaikan,
             perawatan, hingga usaha rumahan. Namun, kesempatan mereka sering terbatas karena hanya dikenal
             lewat rekomendasi dari mulut ke mulut.
           </p>
@@ -479,7 +573,7 @@ function Footer() {
         <div className="footer__brand">
           <Logo light />
           <p>Ruang digital untuk menghubungkan kebutuhan masyarakat dengan potensi jasa lokal.</p>
-          <span className="footer__sdg">Mendukung semangat SDG 1 — Tanpa Kemiskinan</span>
+          <span className="footer__sdg">Mendukung semangat SDG 1 â€” Tanpa Kemiskinan</span>
         </div>
         <div className="footer__links">
           <div>
@@ -489,6 +583,8 @@ function Footer() {
                 {label}
               </a>
             ))}
+            <Link href="/login">Masuk</Link>
+            <Link href="/register">Daftar</Link>
           </div>
           <div>
             <h3>Hubungi Kami</h3>
@@ -498,7 +594,7 @@ function Footer() {
         </div>
       </div>
       <div className="container footer__bottom">
-        <p>© {new Date().getFullYear()} LOKA. Tumbuh bersama potensi lokal.</p>
+        <p>Â© {new Date().getFullYear()} LOKA. Tumbuh bersama potensi lokal.</p>
         <p>Dibuat untuk komunitas Indonesia.</p>
       </div>
     </footer>

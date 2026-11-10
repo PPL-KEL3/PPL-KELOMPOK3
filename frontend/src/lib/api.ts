@@ -1,6 +1,10 @@
 import type { AuthUser } from './auth-types'
 import type { Category } from '@/types/category'
-import type { OperatingHours, ProviderProfile } from '@/types/provider'
+import type {
+  OperatingHours,
+  ProviderProfile,
+  ServiceArea,
+} from '@/types/provider'
 import type { ServiceItem } from '@/types/service'
 
 export class ApiError extends Error {
@@ -348,6 +352,56 @@ export const providerProfileApi = {
   getPublic(providerId: string) {
     return request<PublicProviderResult>(
       `/providers/${encodeURIComponent(providerId)}`
+    )
+  },
+}
+
+export interface ServiceAreaListResult {
+  serviceAreas: ServiceArea[]
+}
+
+export interface ServiceAreaMutationApiResult {
+  serviceArea: ServiceArea
+  serviceAreas: ServiceArea[]
+  message: string
+}
+
+export interface ServiceAreaPayload {
+  areaName: string
+  radiusKm: number
+}
+
+export const serviceAreaApi = {
+  listMine() {
+    return request<ServiceAreaListResult>('/providers/me/service-areas')
+  },
+
+  create(input: ServiceAreaPayload) {
+    return request<ServiceAreaMutationApiResult>(
+      '/providers/me/service-areas',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }
+    )
+  },
+
+  update(areaId: string, input: Partial<ServiceAreaPayload>) {
+    return request<ServiceAreaMutationApiResult>(
+      `/providers/me/service-areas/${encodeURIComponent(areaId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }
+    )
+  },
+
+  remove(areaId: string) {
+    return request<ServiceAreaMutationApiResult>(
+      `/providers/me/service-areas/${encodeURIComponent(areaId)}`,
+      {
+        method: 'DELETE',
+      }
     )
   },
 }

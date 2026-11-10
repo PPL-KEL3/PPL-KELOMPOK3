@@ -236,6 +236,7 @@
 /* --------------------------------- Cards --------------------------------- */
 
 .pub-hours-card,
+.pub-areas-card,
 .pub-services {
   padding: clamp(22px, 3vw, 30px);
   border: 1px solid var(--auth-border);
@@ -597,5 +598,61 @@
   .pub-btn,
   .pub-service-card__link {
     transition: none;
+  }
+}
+
+/* ----------------------------- Service areas ----------------------------- */
+
+.pub-areas-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.pub-area-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 13px;
+  border: 1px solid var(--auth-border);
+  border-radius: 13px;
+  background: #fcfcfa;
+}
+
+.pub-area-item__icon {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background: var(--auth-sage);
+  color: var(--auth-primary);
+}
+
+.pub-area-item div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pub-area-item strong {
+  color: var(--auth-text);
+  font-size: 12.5px;
+  font-weight: 800;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.pub-area-item div span {
+  color: var(--auth-muted);
+  font-size: 11px;
+}
+
+@media (max-width: 860px) {
+  .pub-areas-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

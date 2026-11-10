@@ -88,6 +88,7 @@ export function PublicProviderProfileClient({
   }
 
   const hours = formatOperatingHours(provider.operatingHours)
+  const serviceAreas = provider.serviceAreas ?? []
   const displayName = provider.businessName
 
   return (
@@ -169,6 +170,37 @@ export function PublicProviderProfileClient({
             ))}
           </ul>
         </section>
+
+        {serviceAreas.length > 0 && (
+          <section className="pub-areas-card" aria-labelledby="provider-areas-heading">
+            <div className="pub-section-head">
+              <div>
+                <span className="pub-eyebrow">Jangkauan Layanan</span>
+                <h2 id="provider-areas-heading">Wilayah &amp; Radius Layanan</h2>
+                <p>
+                  Area tempat {displayName} bersedia melayani pelanggan.
+                </p>
+              </div>
+              <span className="pub-count-badge">
+                {serviceAreas.length} Wilayah
+              </span>
+            </div>
+
+            <div className="pub-areas-grid">
+              {serviceAreas.map((area) => (
+                <div className="pub-area-item" key={area.id}>
+                  <span className="pub-area-item__icon" aria-hidden="true">
+                    <MapPinIcon size={17} />
+                  </span>
+                  <div>
+                    <strong>{area.areaName}</strong>
+                    <span>Radius {area.radiusKm} km</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className="pub-services" aria-labelledby="provider-services-heading">
           <div className="pub-section-head">

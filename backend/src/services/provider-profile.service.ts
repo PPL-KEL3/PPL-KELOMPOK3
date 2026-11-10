@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { createSupabaseClient, supabaseConfigured } from '../config/supabase'
 import { AppError } from '../lib/errors'
 import type { DatabaseErrorLike } from './category.service'
@@ -22,6 +23,19 @@ export interface DaySchedule {
 
 export type OperatingHours = Record<DayKey, DaySchedule>
 
+export interface ServiceArea {
+  id: string
+  areaName: string
+  radiusKm: number
+}
+
+export interface ServiceAreaInput {
+  areaName: string
+  radiusKm: number
+}
+
+export const MAX_SERVICE_AREAS = 10
+
 export interface ProviderProfileDto {
   id: string
   businessName: string
@@ -29,6 +43,7 @@ export interface ProviderProfileDto {
   whatsappNumber: string
   address: string
   serviceArea: string
+  serviceAreas: ServiceArea[]
   operatingHours: OperatingHours
   primaryCategory: { id: string; name: string }
   isPublic: boolean
@@ -47,7 +62,9 @@ export interface ProviderProfileWriteInput {
   isPublic: boolean
 }
 
-export type ProviderProfileUpdateInput = Partial<ProviderProfileWriteInput>
+export type ProviderProfileUpdateInput = Partial<ProviderProfileWriteInput> & {
+  serviceAreas?: ServiceArea[]
+}
 
 export interface ProviderProfileRow {
   profile_id: string
@@ -56,6 +73,7 @@ export interface ProviderProfileRow {
   whatsapp_number: string
   address: string
   service_area: string
+  service_areas?: unknown
   operating_hours: unknown
   primary_category_id: string
   is_public: boolean
@@ -99,7 +117,7 @@ export interface ProviderProfileStore {
 }
 
 const PROVIDER_PROFILE_COLUMNS =
-  'profile_id, business_name, bio, whatsapp_number, address, service_area, operating_hours, primary_category_id, is_public, created_at, updated_at, categories(name)'
+  'profile_id, business_name, bio, whatsapp_number, address, service_area, service_areas, operating_hours, primary_category_id, is_public, created_at, updated_at, categories(name)'
 
 function ensureSupabaseConfigured(): void {
   if (!supabaseConfigured) {
@@ -234,6 +252,37 @@ export function normalizeOperatingHours(raw: unknown): OperatingHours {
   return result
 }
 
+export function normalizeServiceAreaName(value: string): string {
+  return value.trim().replace(/\s+/g, ' ')
+}
+
+export function normalizeServiceAreas(raw: unknown): ServiceArea[] {
+  if (!Array.isArray(raw)) return []
+
+  return raw.flatMap((item) => {
+    if (!item || typeof item !== 'object') return []
+
+    const source = item as Record<string, unknown>
+    const id = typeof source.id === 'string' ? source.id.trim() : ''
+    const areaName =
+      typeof source.areaName === 'string'
+        ? normalizeServiceAreaName(source.areaName)
+        : ''
+    const radiusKm =
+      typeof source.radiusKm === 'number'
+        ? source.radiusKm
+        : Number(source.radiusKm)
+
+    if (!id || !areaName || !Number.isFinite(radiusKm)) return []
+
+    return [{ id, areaName, radiusKm }]
+  })
+}
+
+export function isValidRadiusKm(value: number): boolean {
+  return Number.isFinite(value) && value >= 1 && value <= 100
+}
+
 function isValidTime(value: string): boolean {
   return /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(value)
 }
@@ -297,6 +346,7 @@ export function mapProviderProfileRow(
     whatsappNumber: row.whatsapp_number,
     address: row.address,
     serviceArea: row.service_area,
+    serviceAreas: normalizeServiceAreas(row.service_areas),
     operatingHours: normalizeOperatingHours(row.operating_hours),
     primaryCategory: {
       id: row.primary_category_id,
@@ -403,6 +453,9 @@ const supabaseProviderProfileStore: ProviderProfileStore = {
     }
     if (input.address !== undefined) payload.address = input.address
     if (input.serviceArea !== undefined) payload.service_area = input.serviceArea
+    if (input.serviceAreas !== undefined) {
+      payload.service_areas = input.serviceAreas
+    }
     if (input.operatingHours !== undefined) {
       payload.operating_hours = input.operatingHours
     }
@@ -602,4 +655,187 @@ export async function getPublicProviderProfile(
   }
 
   return mapProviderProfileRow(data)
+}
+
+async function getOwnProfileRow(
+  profileId: string,
+  accessToken: string
+): Promise<ProviderProfileRow> {
+  const { data, error } = await activeProviderProfileStore.findById(
+    profileId,
+    accessToken
+  )
+
+  if (error) {
+    throw mapProviderProfileDatabaseError('find_own_for_service_area', error)
+  }
+
+  if (!data) {
+    throw new AppError(
+      404,
+      'PROVIDER_PROFILE_NOT_FOUND',
+      'Profil penyedia belum dibuat.'
+    )
+  }
+
+  return data
+}
+
+async function persistServiceAreas(
+  profileId: string,
+  serviceAreas: ServiceArea[],
+  accessToken: string
+): Promise<void> {
+  const { data, error } = await activeProviderProfileStore.updateById(
+    profileId,
+    { serviceAreas },
+    accessToken
+  )
+
+  if (error) {
+    throw mapProviderProfileDatabaseError('update_service_areas', error)
+  }
+
+  if (!data) {
+    throw new AppError(
+      404,
+      'PROVIDER_PROFILE_NOT_FOUND',
+      'Profil penyedia belum dibuat.'
+    )
+  }
+}
+
+export interface ServiceAreaMutationResult {
+  serviceArea: ServiceArea
+  serviceAreas: ServiceArea[]
+}
+
+export async function listMyServiceAreas(
+  profileId: string,
+  accessToken: string
+): Promise<ServiceArea[]> {
+  const row = await getOwnProfileRow(profileId, accessToken)
+  return normalizeServiceAreas(row.service_areas)
+}
+
+export async function createServiceArea(
+  profileId: string,
+  input: ServiceAreaInput,
+  accessToken: string
+): Promise<ServiceAreaMutationResult> {
+  const row = await getOwnProfileRow(profileId, accessToken)
+  const current = normalizeServiceAreas(row.service_areas)
+  const areaName = normalizeServiceAreaName(input.areaName)
+
+  if (current.length >= MAX_SERVICE_AREAS) {
+    throw new AppError(
+      400,
+      'VALIDATION_ERROR',
+      `Maksimal ${MAX_SERVICE_AREAS} wilayah layanan per penyedia.`,
+      {
+        areaName: `Maksimal ${MAX_SERVICE_AREAS} wilayah layanan per penyedia.`,
+      }
+    )
+  }
+
+  const isDuplicate = current.some(
+    (area) => area.areaName.toLowerCase() === areaName.toLowerCase()
+  )
+
+  if (isDuplicate) {
+    throw new AppError(
+      400,
+      'VALIDATION_ERROR',
+      'Nama wilayah layanan sudah digunakan.',
+      { areaName: 'Nama wilayah layanan sudah digunakan.' }
+    )
+  }
+
+  const serviceArea: ServiceArea = {
+    id: randomUUID(),
+    areaName,
+    radiusKm: input.radiusKm,
+  }
+  const serviceAreas = [...current, serviceArea]
+
+  await persistServiceAreas(profileId, serviceAreas, accessToken)
+
+  return { serviceArea, serviceAreas }
+}
+
+export async function updateServiceArea(
+  profileId: string,
+  areaId: string,
+  input: Partial<ServiceAreaInput>,
+  accessToken: string
+): Promise<ServiceAreaMutationResult> {
+  const row = await getOwnProfileRow(profileId, accessToken)
+  const current = normalizeServiceAreas(row.service_areas)
+  const index = current.findIndex((area) => area.id === areaId)
+
+  if (index === -1) {
+    throw new AppError(
+      404,
+      'SERVICE_AREA_NOT_FOUND',
+      'Wilayah layanan tidak ditemukan.'
+    )
+  }
+
+  const areaName =
+    input.areaName !== undefined
+      ? normalizeServiceAreaName(input.areaName)
+      : current[index].areaName
+  const radiusKm =
+    input.radiusKm !== undefined ? input.radiusKm : current[index].radiusKm
+
+  const isDuplicate = current.some(
+    (area) =>
+      area.id !== areaId &&
+      area.areaName.toLowerCase() === areaName.toLowerCase()
+  )
+
+  if (isDuplicate) {
+    throw new AppError(
+      400,
+      'VALIDATION_ERROR',
+      'Nama wilayah layanan sudah digunakan.',
+      { areaName: 'Nama wilayah layanan sudah digunakan.' }
+    )
+  }
+
+  const serviceArea: ServiceArea = {
+    ...current[index],
+    areaName,
+    radiusKm,
+  }
+  const serviceAreas = current.map((area, currentIndex) =>
+    currentIndex === index ? serviceArea : area
+  )
+
+  await persistServiceAreas(profileId, serviceAreas, accessToken)
+
+  return { serviceArea, serviceAreas }
+}
+
+export async function deleteServiceArea(
+  profileId: string,
+  areaId: string,
+  accessToken: string
+): Promise<ServiceAreaMutationResult> {
+  const row = await getOwnProfileRow(profileId, accessToken)
+  const current = normalizeServiceAreas(row.service_areas)
+  const target = current.find((area) => area.id === areaId)
+
+  if (!target) {
+    throw new AppError(
+      404,
+      'SERVICE_AREA_NOT_FOUND',
+      'Wilayah layanan tidak ditemukan.'
+    )
+  }
+
+  const serviceAreas = current.filter((area) => area.id !== areaId)
+  await persistServiceAreas(profileId, serviceAreas, accessToken)
+
+  return { serviceArea: target, serviceAreas }
 }

@@ -249,6 +249,7 @@ function createInMemoryProviderProfileStore(): {
         whatsapp_number: input.whatsappNumber,
         address: input.address,
         service_area: input.serviceArea,
+        service_areas: index >= 0 ? rows[index].service_areas ?? [] : [],
         operating_hours: input.operatingHours,
         primary_category_id: input.primaryCategoryId,
         is_public: input.isPublic,
@@ -280,6 +281,7 @@ function createInMemoryProviderProfileStore(): {
         whatsapp_number: input.whatsappNumber ?? current.whatsapp_number,
         address: input.address ?? current.address,
         service_area: input.serviceArea ?? current.service_area,
+        service_areas: input.serviceAreas ?? current.service_areas ?? [],
         operating_hours: input.operatingHours ?? current.operating_hours,
         primary_category_id:
           input.primaryCategoryId ?? current.primary_category_id,
@@ -808,5 +810,303 @@ describe('TPR-9 / TPR-60: Pengelolaan Profil Penyedia dan Kontak WhatsApp (TC-PR
         (service) => service.id === SERVICE_B_ACTIVE_ID
       )
     )
+  })
+
+  async function createProviderProfile(identity: TestIdentity) {
+    return sendRequest(buildTestApp(identity), {
+      method: 'PUT',
+      path: '/api/providers/me',
+      body: validProfilePayload(),
+    })
+  }
+
+  it('TC-AREA-01: Provider belum punya profil tidak bisa mengakses wilayah layanan (404)', async () => {
+    const response = await sendRequest<ApiErrorBody>(buildTestApp(providerA), {
+      method: 'GET',
+      path: '/api/providers/me/service-areas',
+    })
+
+    assert.equal(response.status, 404)
+    assert.equal(response.body.error.code, 'PROVIDER_PROFILE_NOT_FOUND')
+  })
+
+  it('TC-AREA-02: Daftar wilayah kosong setelah profil dibuat (200)', async () => {
+    await createProviderProfile(providerA)
+
+    const response = await sendRequest<{
+      success: boolean
+      data: { serviceAreas: unknown[] }
+    }>(buildTestApp(providerA), {
+      method: 'GET',
+      path: '/api/providers/me/service-areas',
+    })
+
+    assert.equal(response.status, 200)
+    assert.deepEqual(response.body.data.serviceAreas, [])
+  })
+
+  it('TC-AREA-03: Provider dapat menambahkan wilayah + radius valid (201)', async () => {
+    await createProviderProfile(providerA)
+
+    const response = await sendRequest<{
+      success: boolean
+      data: {
+        serviceArea: { id: string; areaName: string; radiusKm: number }
+        serviceAreas: Array<{ id: string; areaName: string; radiusKm: number }>
+        message: string
+      }
+    }>(buildTestApp(providerA), {
+      method: 'POST',
+      path: '/api/providers/me/service-areas',
+      body: { areaName: '  Kecamatan   Coblong ', radiusKm: 5 },
+    })
+
+    assert.equal(response.status, 201)
+    assert.equal(response.body.data.serviceArea.areaName, 'Kecamatan Coblong')
+    assert.equal(response.body.data.serviceArea.radiusKm, 5)
+    assert.equal(response.body.data.serviceAreas.length, 1)
+    assert.ok(response.body.data.serviceArea.id)
+  })
+
+  it('TC-AREA-04: Menolak nama wilayah/radius tidak valid (400)', async () => {
+    await createProviderProfile(providerA)
+    const app = buildTestApp(providerA)
+
+    const emptyName = await sendRequest<ApiErrorBody>(app, {
+      method: 'POST',
+      path: '/api/providers/me/service-areas',
+      body: { areaName: '  ', radiusKm: 5 },
+    })
+    assert.equal(emptyName.status, 400)
+    assert.ok(emptyName.body.error.fields?.areaName)
+
+    const invalidRadius = await sendRequest<ApiErrorBody>(app, {
+      method: 'POST',
+      path: '/api/providers/me/service-areas',
+      body: { areaName: 'Kecamatan Dago', radiusKm: 0 },
+    })
+    assert.equal(invalidRadius.status, 400)
+    assert.ok(invalidRadius.body.error.fields?.radiusKm)
+
+    const tooFar = await sendRequest<ApiErrorBody>(app, {
+      method: 'POST',
+      path: '/api/providers/me/service-areas',
+      body: { areaName: 'Kecamatan Dago', radiusKm: 101 },
+    })
+    assert.equal(tooFar.status, 400)
+    assert.ok(tooFar.body.error.fields?.radiusKm)
+  })
+
+  it('TC-AREA-05: Menolak nama wilayah duplikat (case-insensitive)', async () => {
+    await createProviderProfile(providerA)
+    const app = buildTestApp(providerA)
+
+    await sendRequest(app, {
+      method: 'POST',
+      path: '/api/providers/me/service-areas',
+      body: { areaName: 'Kecamatan Coblong', radiusKm: 5 },
+    })
+
+    const duplicate = await sendRequest<ApiErrorBody>(app, {
+      method: 'POST',
+      path: '/api/providers/me/service-areas',
+      body: { areaName: '  kecamatan   coblong ', radiusKm: 8 },
+    })
+
+    assert.equal(duplicate.status, 400)
+    assert.equal(duplicate.body.error.fields?.areaName, 'Nama wilayah layanan sudah digunakan.')
+  })
+
+  it('TC-AREA-06: Maksimal 10 wilayah layanan per provider', async () => {
+    await createProviderProfile(providerA)
+    const app = buildTestApp(providerA)
+
+    for (let index = 1; index <= 10; index += 1) {
+      const res = await sendRequest(app, {
+        method: 'POST',
+        path: '/api/providers/me/service-areas',
+        body: { areaName: `Wilayah ${index}`, radiusKm: 5 },
+      })
+      assert.equal(res.status, 201)
+    }
+
+    const overflow = await sendRequest<ApiErrorBody>(app, {
+      method: 'POST',
+      path: '/api/providers/me/service-areas',
+      body: { areaName: 'Wilayah 11', radiusKm: 5 },
+    })
+
+    assert.equal(overflow.status, 400)
+    assert.ok(overflow.body.error.fields?.areaName)
+  })
+
+  it('TC-AREA-07: Provider dapat memperbarui wilayah/radius miliknya (200)', async () => {
+    await createProviderProfile(providerA)
+    const app = buildTestApp(providerA)
+
+    const created = await sendRequest<{
+      success: boolean
+      data: { serviceArea: { id: string } }
+    }>(app, {
+      method: 'POST',
+      path: '/api/providers/me/service-areas',
+      body: { areaName: 'Kecamatan Coblong', radiusKm: 5 },
+    })
+
+    const areaId = created.body.data.serviceArea.id
+    const response = await sendRequest<{
+      success: boolean
+      data: {
+        serviceArea: { id: string; areaName: string; radiusKm: number }
+      }
+    }>(app, {
+      method: 'PATCH',
+      path: `/api/providers/me/service-areas/${areaId}`,
+      body: { areaName: 'Kecamatan Coblong Baru', radiusKm: 12 },
+    })
+
+    assert.equal(response.status, 200)
+    assert.equal(response.body.data.serviceArea.areaName, 'Kecamatan Coblong Baru')
+    assert.equal(response.body.data.serviceArea.radiusKm, 12)
+  })
+
+  it('TC-AREA-08: Update/hapus wilayah tidak dikenal menghasilkan 404 dan ID invalid 400', async () => {
+    await createProviderProfile(providerA)
+    const app = buildTestApp(providerA)
+    const unknownId = '99999999-9999-4999-8999-999999999999'
+
+    const updateRes = await sendRequest<ApiErrorBody>(app, {
+      method: 'PATCH',
+      path: `/api/providers/me/service-areas/${unknownId}`,
+      body: { radiusKm: 10 },
+    })
+    assert.equal(updateRes.status, 404)
+    assert.equal(updateRes.body.error.code, 'SERVICE_AREA_NOT_FOUND')
+
+    const deleteRes = await sendRequest<ApiErrorBody>(app, {
+      method: 'DELETE',
+      path: `/api/providers/me/service-areas/${unknownId}`,
+    })
+    assert.equal(deleteRes.status, 404)
+    assert.equal(deleteRes.body.error.code, 'SERVICE_AREA_NOT_FOUND')
+
+    const invalidId = await sendRequest<ApiErrorBody>(app, {
+      method: 'DELETE',
+      path: '/api/providers/me/service-areas/bukan-uuid',
+    })
+    assert.equal(invalidId.status, 400)
+    assert.equal(invalidId.body.error.code, 'INVALID_SERVICE_AREA_ID')
+  })
+
+  it('TC-AREA-09: Provider dapat menghapus wilayah miliknya (200)', async () => {
+    await createProviderProfile(providerA)
+    const app = buildTestApp(providerA)
+
+    const created = await sendRequest<{
+      success: boolean
+      data: { serviceArea: { id: string } }
+    }>(app, {
+      method: 'POST',
+      path: '/api/providers/me/service-areas',
+      body: { areaName: 'Kecamatan Coblong', radiusKm: 5 },
+    })
+
+    const areaId = created.body.data.serviceArea.id
+    const deleted = await sendRequest<{
+      success: boolean
+      data: { serviceArea: { id: string }; serviceAreas: unknown[] }
+    }>(app, {
+      method: 'DELETE',
+      path: `/api/providers/me/service-areas/${areaId}`,
+    })
+
+    assert.equal(deleted.status, 200)
+    assert.equal(deleted.body.data.serviceArea.id, areaId)
+    assert.deepEqual(deleted.body.data.serviceAreas, [])
+  })
+
+  it('TC-AREA-10: Wilayah layanan tampil di profil publik', async () => {
+    await sendRequest(buildTestApp(providerA), {
+      method: 'PUT',
+      path: '/api/providers/me',
+      body: validProfilePayload({ isPublic: true }),
+    })
+
+    await sendRequest(buildTestApp(providerA), {
+      method: 'POST',
+      path: '/api/providers/me/service-areas',
+      body: { areaName: 'Kecamatan Coblong', radiusKm: 5 },
+    })
+
+    const publicResponse = await sendRequest<{
+      success: boolean
+      data: {
+        provider: {
+          serviceAreas: Array<{ areaName: string; radiusKm: number }>
+        }
+      }
+    }>(buildTestApp(null), {
+      method: 'GET',
+      path: `/api/providers/${PROVIDER_A_ID}`,
+    })
+
+    assert.equal(publicResponse.status, 200)
+    assert.equal(publicResponse.body.data.provider.serviceAreas.length, 1)
+    assert.equal(
+      publicResponse.body.data.provider.serviceAreas[0].areaName,
+      'Kecamatan Coblong'
+    )
+    assert.equal(publicResponse.body.data.provider.serviceAreas[0].radiusKm, 5)
+  })
+
+  it('TC-AREA-11: Provider lain tidak melihat/mengubah wilayah provider A', async () => {
+    await createProviderProfile(providerA)
+    const appA = buildTestApp(providerA)
+    const created = await sendRequest<{
+      success: boolean
+      data: { serviceArea: { id: string } }
+    }>(appA, {
+      method: 'POST',
+      path: '/api/providers/me/service-areas',
+      body: { areaName: 'Kecamatan Coblong', radiusKm: 5 },
+    })
+    const areaId = created.body.data.serviceArea.id
+
+    await createProviderProfile(providerB)
+    const appB = buildTestApp(providerB)
+
+    const listB = await sendRequest<{
+      success: boolean
+      data: { serviceAreas: unknown[] }
+    }>(appB, { method: 'GET', path: '/api/providers/me/service-areas' })
+    assert.deepEqual(listB.body.data.serviceAreas, [])
+
+    const updateB = await sendRequest<ApiErrorBody>(appB, {
+      method: 'PATCH',
+      path: `/api/providers/me/service-areas/${areaId}`,
+      body: { radiusKm: 20 },
+    })
+    assert.equal(updateB.status, 404)
+    assert.equal(updateB.body.error.code, 'SERVICE_AREA_NOT_FOUND')
+  })
+
+  it('TC-AREA-12: Anon dan customer tidak dapat mengelola wilayah layanan', async () => {
+    const guest = await sendRequest<ApiErrorBody>(buildTestApp(null), {
+      method: 'GET',
+      path: '/api/providers/me/service-areas',
+    })
+    assert.equal(guest.status, 401)
+    assert.equal(guest.body.error.code, 'NO_SESSION')
+
+    const customer = await sendRequest<ApiErrorBody>(
+      buildTestApp({ id: CUSTOMER_ID, role: 'customer' }),
+      {
+        method: 'POST',
+        path: '/api/providers/me/service-areas',
+        body: { areaName: 'Kecamatan Coblong', radiusKm: 5 },
+      }
+    )
+    assert.equal(customer.status, 403)
+    assert.equal(customer.body.error.code, 'FORBIDDEN')
   })
 })
