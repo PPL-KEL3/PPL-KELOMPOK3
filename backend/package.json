@@ -7,9 +7,10 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "tsc && node --test dist/tests/category-test-cases.test.js dist/tests/category.test.js",
+    "test": "tsc && node --test dist/tests/category-test-cases.test.js dist/tests/category.test.js dist/tests/service-test-cases.test.js",
     "test:tpr127": "tsc && node --test dist/tests/category-test-cases.test.js",
-    "test:tpr28": "tsc && node --test dist/tests/category.test.js"
+    "test:tpr28": "tsc && node --test dist/tests/category.test.js",
+    "test:tpr128": "tsc && node --test dist/tests/service-test-cases.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.47.0",
