@@ -52,6 +52,10 @@ export interface UpdateServiceListingInput {
 }
 
 export interface ServiceListingStore {
+  categoryExists(categoryId: string): Promise<{
+    exists: boolean
+    error: DatabaseErrorLike | null
+  }>
   findPublic(filter?: {
     categoryId?: string
   }): Promise<{
@@ -213,6 +217,21 @@ export function mapServiceListingDatabaseError(
 }
 
 const supabaseServiceListingStore: ServiceListingStore = {
+  async categoryExists(categoryId: string) {
+    ensureSupabaseConfigured()
+    const client = createSupabaseClient()
+    const { data, error } = await client
+      .from('categories')
+      .select('id')
+      .eq('id', categoryId)
+      .maybeSingle()
+
+    return {
+      exists: Boolean(data?.id),
+      error,
+    }
+  },
+
   async findPublic(filter) {
     ensureSupabaseConfigured()
     const client = createSupabaseClient()
@@ -343,6 +362,43 @@ export function setServiceListingStoreForTesting(
   activeServiceListingStore = store ?? supabaseServiceListingStore
 }
 
+export function normalizeServiceName(value: string): string {
+  return value.trim().replace(/\s+/g, ' ')
+}
+
+async function assertCategoryExists(categoryId: string): Promise<void> {
+  const { exists, error } =
+    await activeServiceListingStore.categoryExists(categoryId)
+
+  if (error) {
+    throw mapServiceListingDatabaseError('verify_category', error)
+  }
+
+  if (!exists) {
+    throw new AppError(
+      400,
+      'INVALID_CATEGORY_REFERENCE',
+      'Kategori jasa yang dipilih tidak ditemukan pada sistem.',
+      {
+        categoryId: 'Kategori jasa yang dipilih tidak ditemukan pada sistem.',
+      }
+    )
+  }
+}
+
+function assertServiceOwnership(
+  serviceRow: ServiceListingRow,
+  providerId: string
+): void {
+  if (serviceRow.provider_id !== providerId) {
+    throw new AppError(
+      403,
+      'SERVICE_OWNERSHIP_FORBIDDEN',
+      'Kamu tidak memiliki izin untuk mengubah atau menghapus layanan milik penyedia jasa lain.'
+    )
+  }
+}
+
 export async function listPublicServices(filter?: {
   categoryId?: string
 }): Promise<ServiceListingDto[]> {
@@ -397,10 +453,20 @@ export async function createServiceListing(
   input: CreateServiceListingInput,
   accessToken: string
 ): Promise<ServiceListingDto> {
+  const normalizedInput: CreateServiceListingInput = {
+    categoryId: input.categoryId.trim(),
+    name: normalizeServiceName(input.name),
+    description: input.description.trim(),
+    price: input.price,
+    isActive: input.isActive ?? true,
+  }
+
+  await assertCategoryExists(normalizedInput.categoryId)
+
   const { data, error } = await activeServiceListingStore.insert(
     providerId,
     providerName,
-    input,
+    normalizedInput,
     accessToken
   )
 
@@ -421,12 +487,50 @@ export async function createServiceListing(
 
 export async function updateServiceListing(
   id: string,
+  providerId: string,
   input: UpdateServiceListingInput,
   accessToken: string
 ): Promise<ServiceListingDto> {
+  const { data: existing, error: findError } =
+    await activeServiceListingStore.findById(id, accessToken)
+
+  if (findError) {
+    throw mapServiceListingDatabaseError('find_before_update', findError)
+  }
+
+  if (!existing) {
+    throw new AppError(404, 'SERVICE_NOT_FOUND', 'Layanan jasa tidak ditemukan.')
+  }
+
+  assertServiceOwnership(existing, providerId)
+
+  const normalizedInput: UpdateServiceListingInput = {}
+
+  if (input.categoryId !== undefined) {
+    const trimmedCategoryId = input.categoryId.trim()
+    await assertCategoryExists(trimmedCategoryId)
+    normalizedInput.categoryId = trimmedCategoryId
+  }
+
+  if (input.name !== undefined) {
+    normalizedInput.name = normalizeServiceName(input.name)
+  }
+
+  if (input.description !== undefined) {
+    normalizedInput.description = input.description.trim()
+  }
+
+  if (input.price !== undefined) {
+    normalizedInput.price = input.price
+  }
+
+  if (input.isActive !== undefined) {
+    normalizedInput.isActive = input.isActive
+  }
+
   const { data, error } = await activeServiceListingStore.updateById(
     id,
-    input,
+    normalizedInput,
     accessToken
   )
 
@@ -443,8 +547,22 @@ export async function updateServiceListing(
 
 export async function deleteServiceListing(
   id: string,
+  providerId: string,
   accessToken: string
 ): Promise<ServiceListingDto> {
+  const { data: existing, error: findError } =
+    await activeServiceListingStore.findById(id, accessToken)
+
+  if (findError) {
+    throw mapServiceListingDatabaseError('find_before_delete', findError)
+  }
+
+  if (!existing) {
+    throw new AppError(404, 'SERVICE_NOT_FOUND', 'Layanan jasa tidak ditemukan.')
+  }
+
+  assertServiceOwnership(existing, providerId)
+
   const { data, error } = await activeServiceListingStore.deleteById(
     id,
     accessToken

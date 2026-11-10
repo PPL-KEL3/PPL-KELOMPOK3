@@ -1,11 +1,12 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { INITIAL_MOCK_CATEGORIES } from '@/data/mock-categories'
 import {
   DEFAULT_DEMO_PROVIDER_ID,
   INITIAL_MOCK_SERVICES,
 } from '@/data/mock-services'
+import { ApiError, categoryApi, serviceApi } from '@/lib/api'
 import type { Category } from '@/types/category'
 import type {
   ServiceFormErrors,
@@ -45,27 +46,117 @@ export function parseServicePrice(rawPrice: string | number): number | null {
   return Number.isSafeInteger(parsed) ? parsed : null
 }
 
+function isServiceFallbackError(err: unknown): boolean {
+  if (!(err instanceof ApiError)) return true
+
+  return (
+    err.status === 0 ||
+    err.status === 401 ||
+    err.status >= 500 ||
+    err.code === 'NETWORK_ERROR' ||
+    err.code === 'SERVICE_LISTING_UNAVAILABLE' ||
+    err.code === 'SERVICE_TABLE_UNAVAILABLE'
+  )
+}
+
+function mapApiErrorToServiceFormErrors(err: unknown): ServiceFormErrors {
+  if (err instanceof ApiError) {
+    const errors: ServiceFormErrors = {}
+    if (err.fields?.name) errors.name = err.fields.name
+    if (err.fields?.categoryId) errors.categoryId = err.fields.categoryId
+    if (err.fields?.description) errors.description = err.fields.description
+    if (err.fields?.price) errors.price = err.fields.price
+
+    if (
+      !errors.name &&
+      !errors.categoryId &&
+      !errors.description &&
+      !errors.price
+    ) {
+      errors.general = err.message
+    }
+
+    return errors
+  }
+
+  return {
+    general: 'Terjadi kesalahan saat menyimpan data layanan jasa.',
+  }
+}
+
 export function useServices(currentProviderId = DEFAULT_DEMO_PROVIDER_ID) {
   const [services, setServices] = useState<ServiceItem[]>(() => [
     ...INITIAL_MOCK_SERVICES,
   ])
-  const [categories] = useState<Category[]>(() => [...INITIAL_MOCK_CATEGORIES])
-  const [dataSource] = useState<ServiceDataSource>('local')
-  const [loading, setLoading] = useState<boolean>(false)
-  const [mutating] = useState<boolean>(false)
+  const [categories, setCategories] = useState<Category[]>(() => [
+    ...INITIAL_MOCK_CATEGORIES,
+  ])
+  const [dataSource, setDataSource] = useState<ServiceDataSource>('local')
+  const [loading, setLoading] = useState<boolean>(true)
+  const [mutating, setMutating] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [hasLocalChanges, setHasLocalChanges] = useState<boolean>(false)
   const [lastActionNotice, setLastActionNotice] = useState<string | null>(null)
 
-  const providerServices = useMemo(
-    () =>
-      services.filter(
-        (item) =>
-          item.providerId === currentProviderId ||
-          item.providerId === DEFAULT_DEMO_PROVIDER_ID
-      ),
-    [services, currentProviderId]
-  )
+  const loadServicesAndCategories = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const [categoryResult, publicResult] = await Promise.all([
+        categoryApi.list().catch(() => null),
+        serviceApi.listPublic(),
+      ])
+
+      if (categoryResult && categoryResult.categories.length > 0) {
+        setCategories(categoryResult.categories)
+      }
+
+      let combinedServices = publicResult.services
+      try {
+        const mineResult = await serviceApi.listMine()
+        const byId = new Map<string, ServiceItem>()
+        for (const item of mineResult.services) {
+          byId.set(item.id, item)
+        }
+        for (const item of publicResult.services) {
+          if (!byId.has(item.id)) {
+            byId.set(item.id, item)
+          }
+        }
+        combinedServices = Array.from(byId.values())
+      } catch {
+        // Unauthenticated visitors or non-provider roles only load public services
+      }
+
+      setServices(combinedServices)
+      setDataSource('api')
+      setHasLocalChanges(false)
+    } catch (err) {
+      setDataSource('local')
+      if (!isServiceFallbackError(err) && err instanceof ApiError) {
+        setError(err.message)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadServicesAndCategories()
+  }, [loadServicesAndCategories])
+
+  const providerServices = useMemo(() => {
+    if (dataSource === 'api') {
+      return services
+    }
+
+    return services.filter(
+      (item) =>
+        item.providerId === currentProviderId ||
+        item.providerId === DEFAULT_DEMO_PROVIDER_ID
+    )
+  }, [services, currentProviderId, dataSource])
 
   const publicServices = useMemo(
     () => services.filter((item) => item.isActive),
@@ -132,22 +223,53 @@ export function useServices(currentProviderId = DEFAULT_DEMO_PROVIDER_ID) {
         return { ok: false, errors }
       }
 
-      const selectedCategory = categories.find(
-        (cat) => cat.id === input.categoryId.trim()
-      )
       const parsedPrice = parseServicePrice(input.price)!
+      const payload = {
+        categoryId: input.categoryId.trim(),
+        name: input.name.trim().replace(/\s+/g, ' '),
+        description: input.description.trim(),
+        price: parsedPrice,
+        isActive: input.isActive,
+      }
+
+      if (dataSource === 'api') {
+        setMutating(true)
+        try {
+          const result = await serviceApi.create(payload)
+          setServices((current) => [result.service, ...current])
+          const notice =
+            result.message ??
+            `Layanan "${result.service.name}" berhasil ditambahkan.`
+          setLastActionNotice(notice)
+          return { ok: true, service: result.service, message: notice }
+        } catch (err) {
+          if (!isServiceFallbackError(err)) {
+            return {
+              ok: false,
+              errors: mapApiErrorToServiceFormErrors(err),
+            }
+          }
+          setDataSource('local')
+        } finally {
+          setMutating(false)
+        }
+      }
+
+      const selectedCategory = categories.find(
+        (cat) => cat.id === payload.categoryId
+      )
       const now = new Date().toISOString()
 
       const newService: ServiceItem = {
         id: `svc-local-${Date.now()}`,
         providerId: currentProviderId,
         providerName: 'Penyedia Jasa LOKA',
-        categoryId: input.categoryId.trim(),
+        categoryId: payload.categoryId,
         categoryName: selectedCategory?.name ?? 'Kategori Umum',
-        name: input.name.trim().replace(/\s+/g, ' '),
-        description: input.description.trim(),
-        price: parsedPrice,
-        isActive: input.isActive,
+        name: payload.name,
+        description: payload.description,
+        price: payload.price,
+        isActive: payload.isActive,
         createdAt: now,
         updatedAt: now,
       }
@@ -159,7 +281,7 @@ export function useServices(currentProviderId = DEFAULT_DEMO_PROVIDER_ID) {
 
       return { ok: true, service: newService, message: notice }
     },
-    [categories, currentProviderId, validateServiceInput]
+    [categories, currentProviderId, dataSource, validateServiceInput]
   )
 
   const updateService = useCallback(
@@ -186,6 +308,7 @@ export function useServices(currentProviderId = DEFAULT_DEMO_PROVIDER_ID) {
       }
 
       if (
+        dataSource === 'local' &&
         existing.providerId !== currentProviderId &&
         existing.providerId !== DEFAULT_DEMO_PROVIDER_ID
       ) {
@@ -198,19 +321,52 @@ export function useServices(currentProviderId = DEFAULT_DEMO_PROVIDER_ID) {
         }
       }
 
-      const selectedCategory = categories.find(
-        (cat) => cat.id === input.categoryId.trim()
-      )
       const parsedPrice = parseServicePrice(input.price)!
-
-      const updated: ServiceItem = {
-        ...existing,
+      const payload = {
         categoryId: input.categoryId.trim(),
-        categoryName: selectedCategory?.name ?? existing.categoryName,
         name: input.name.trim().replace(/\s+/g, ' '),
         description: input.description.trim(),
         price: parsedPrice,
         isActive: input.isActive,
+      }
+
+      if (dataSource === 'api') {
+        setMutating(true)
+        try {
+          const result = await serviceApi.update(id, payload)
+          setServices((current) =>
+            current.map((item) => (item.id === id ? result.service : item))
+          )
+          const notice =
+            result.message ??
+            `Layanan "${result.service.name}" berhasil diperbarui.`
+          setLastActionNotice(notice)
+          return { ok: true, service: result.service, message: notice }
+        } catch (err) {
+          if (!isServiceFallbackError(err)) {
+            return {
+              ok: false,
+              errors: mapApiErrorToServiceFormErrors(err),
+            }
+          }
+          setDataSource('local')
+        } finally {
+          setMutating(false)
+        }
+      }
+
+      const selectedCategory = categories.find(
+        (cat) => cat.id === payload.categoryId
+      )
+
+      const updated: ServiceItem = {
+        ...existing,
+        categoryId: payload.categoryId,
+        categoryName: selectedCategory?.name ?? existing.categoryName,
+        name: payload.name,
+        description: payload.description,
+        price: payload.price,
+        isActive: payload.isActive,
         updatedAt: new Date().toISOString(),
       }
 
@@ -223,7 +379,7 @@ export function useServices(currentProviderId = DEFAULT_DEMO_PROVIDER_ID) {
 
       return { ok: true, service: updated, message: notice }
     },
-    [categories, currentProviderId, services, validateServiceInput]
+    [categories, currentProviderId, dataSource, services, validateServiceInput]
   )
 
   const toggleServiceStatus = useCallback(
@@ -238,6 +394,7 @@ export function useServices(currentProviderId = DEFAULT_DEMO_PROVIDER_ID) {
       }
 
       if (
+        dataSource === 'local' &&
         existing.providerId !== currentProviderId &&
         existing.providerId !== DEFAULT_DEMO_PROVIDER_ID
       ) {
@@ -249,9 +406,37 @@ export function useServices(currentProviderId = DEFAULT_DEMO_PROVIDER_ID) {
         }
       }
 
+      const nextStatus = !existing.isActive
+
+      if (dataSource === 'api') {
+        setMutating(true)
+        try {
+          const result = await serviceApi.update(id, { isActive: nextStatus })
+          setServices((current) =>
+            current.map((item) => (item.id === id ? result.service : item))
+          )
+          const notice = result.service.isActive
+            ? `Layanan "${result.service.name}" diaktifkan kembali dan tampil ke pelanggan.`
+            : `Layanan "${result.service.name}" dinonaktifkan dari pencarian pelanggan.`
+          setLastActionNotice(notice)
+          return { ok: true, service: result.service, message: notice }
+        } catch (err) {
+          if (!isServiceFallbackError(err) && err instanceof ApiError) {
+            return {
+              ok: false,
+              code: err.code,
+              message: err.message,
+            }
+          }
+          setDataSource('local')
+        } finally {
+          setMutating(false)
+        }
+      }
+
       const updated: ServiceItem = {
         ...existing,
-        isActive: !existing.isActive,
+        isActive: nextStatus,
         updatedAt: new Date().toISOString(),
       }
 
@@ -266,7 +451,7 @@ export function useServices(currentProviderId = DEFAULT_DEMO_PROVIDER_ID) {
 
       return { ok: true, service: updated, message: notice }
     },
-    [currentProviderId, services]
+    [currentProviderId, dataSource, services]
   )
 
   const deleteService = useCallback(
@@ -281,6 +466,7 @@ export function useServices(currentProviderId = DEFAULT_DEMO_PROVIDER_ID) {
       }
 
       if (
+        dataSource === 'local' &&
         target.providerId !== currentProviderId &&
         target.providerId !== DEFAULT_DEMO_PROVIDER_ID
       ) {
@@ -292,6 +478,30 @@ export function useServices(currentProviderId = DEFAULT_DEMO_PROVIDER_ID) {
         }
       }
 
+      if (dataSource === 'api') {
+        setMutating(true)
+        try {
+          const result = await serviceApi.remove(id)
+          setServices((current) => current.filter((item) => item.id !== id))
+          const notice =
+            result.message ??
+            `Layanan "${target.name}" berhasil dihapus dari daftar jasa.`
+          setLastActionNotice(notice)
+          return { ok: true, service: target, message: notice }
+        } catch (err) {
+          if (!isServiceFallbackError(err) && err instanceof ApiError) {
+            return {
+              ok: false,
+              code: err.code,
+              message: err.message,
+            }
+          }
+          setDataSource('local')
+        } finally {
+          setMutating(false)
+        }
+      }
+
       setServices((current) => current.filter((item) => item.id !== id))
       setHasLocalChanges(true)
       const notice = `Layanan "${target.name}" berhasil dihapus dari daftar jasa.`
@@ -299,14 +509,12 @@ export function useServices(currentProviderId = DEFAULT_DEMO_PROVIDER_ID) {
 
       return { ok: true, service: target, message: notice }
     },
-    [currentProviderId, services]
+    [currentProviderId, dataSource, services]
   )
 
   const reloadServices = useCallback(() => {
-    setLoading(true)
-    setError(null)
-    setLoading(false)
-  }, [])
+    void loadServicesAndCategories()
+  }, [loadServicesAndCategories])
 
   const resetMockServices = useCallback(() => {
     setServices([...INITIAL_MOCK_SERVICES])
@@ -334,4 +542,3 @@ export function useServices(currentProviderId = DEFAULT_DEMO_PROVIDER_ID) {
     resetMockServices,
   }
 }
-
