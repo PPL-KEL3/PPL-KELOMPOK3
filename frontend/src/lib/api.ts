@@ -1,5 +1,6 @@
 import type { AuthUser } from './auth-types'
 import type { Category } from '@/types/category'
+import type { ServiceItem } from '@/types/service'
 
 export class ApiError extends Error {
   readonly status: number
@@ -228,6 +229,74 @@ export const categoryApi = {
   remove(id: string) {
     return request<CategoryDeleteApiResult>(
       `/categories/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+      }
+    )
+  },
+}
+
+export interface ServiceListResult {
+  services: ServiceItem[]
+}
+
+export interface ServiceItemResult {
+  service: ServiceItem
+  message?: string
+}
+
+export interface ServiceDeleteApiResult {
+  service: ServiceItem
+  deletedId: string
+  message: string
+}
+
+export interface ServiceMutationPayload {
+  categoryId: string
+  name: string
+  description: string
+  price: number
+  isActive: boolean
+}
+
+export const serviceApi = {
+  listPublic(categoryId?: string) {
+    const query = categoryId
+      ? `?categoryId=${encodeURIComponent(categoryId)}`
+      : ''
+    return request<ServiceListResult>(`/services${query}`)
+  },
+
+  listMine() {
+    return request<ServiceListResult>('/services/mine')
+  },
+
+  getById(id: string) {
+    return request<{ service: ServiceItem }>(
+      `/services/${encodeURIComponent(id)}`
+    )
+  },
+
+  create(input: ServiceMutationPayload) {
+    return request<ServiceItemResult>('/services', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  },
+
+  update(id: string, input: Partial<ServiceMutationPayload>) {
+    return request<ServiceItemResult>(
+      `/services/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }
+    )
+  },
+
+  remove(id: string) {
+    return request<ServiceDeleteApiResult>(
+      `/services/${encodeURIComponent(id)}`,
       {
         method: 'DELETE',
       }
