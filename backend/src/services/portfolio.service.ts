@@ -406,12 +406,17 @@ export function isOwnImagePath(imagePath: string, providerId: string): boolean {
   return match !== null && match[1] === providerId.toLowerCase()
 }
 
+type FileLookup = { data: StoredFileInfo | null; error: DatabaseErrorLike | null }
+
+function lookupUploadedFile(imagePath: string, accessToken: string): Promise<FileLookup> {
+  return activePortfolioStore.findFile(imagePath, accessToken)
+}
+
 /**
  * Memastikan file hasil unggah benar-benar ada di bucket dan sesuai batas.
- * File yang melanggar batas dihapus supaya tidak menjadi file yatim.
+ * (File yang melanggar dihapus oleh pemanggil lewat `discardUploadedFile`.)
  */
-async function assertUploadedFileValid(imagePath: string, accessToken: string): Promise<void> {
-  const { data, error } = await activePortfolioStore.findFile(imagePath, accessToken)
+function checkUploadedFile({ data, error }: FileLookup): void {
   if (error) {
     console.error('[portfolio] File lookup failed', { code: error.code ?? 'unknown' })
     throw new AppError(
@@ -493,23 +498,30 @@ export async function createUploadUrl(
   if (input.size > MAX_PORTFOLIO_FILE_SIZE) {
     throw new AppError(400, 'FILE_TOO_LARGE', 'Ukuran foto maksimal 5 MB.')
   }
-
-  // Tambah item baru ditolak lebih awal bila sudah 20 item. Ganti foto tidak menambah item,
-  // tapi hanya boleh untuk item yang ada dan milik sendiri (404/403), supaya `replace`
-  // tidak bisa dipakai melewati batas 20 untuk mengunggah file tanpa disimpan.
-  if (input.purpose === 'replace') {
-    if (!input.portfolioId) throw portfolioNotFound()
-    await loadOwnedItem(input.portfolioId, providerId, accessToken)
-  } else {
-    assertProviderCanAdd(await loadProviderRows(providerId, accessToken))
-  }
+  if (input.purpose === 'replace' && !input.portfolioId) throw portfolioNotFound()
 
   // Nama file dibuat ulang dengan UUID; nama asli tidak dipakai di path.
   const imagePath = `${providerId}/${randomUUID()}.${extension}`
-  const { data, error } = await activePortfolioStore.createSignedUploadUrl(
-    imagePath,
-    accessToken
-  )
+
+  // Pengecekan izin dan pembuatan URL berjalan paralel (keduanya hanya baca/tanda tangan),
+  // tapi URL baru dikembalikan setelah pengecekan lolos:
+  // - tambah item baru ditolak bila sudah 20 item;
+  // - ganti foto tidak menambah item, tapi hanya untuk item yang ada dan milik sendiri
+  //   (404/403), supaya `replace` tidak bisa dipakai melewati batas 20.
+  const permission =
+    input.purpose === 'replace'
+      ? loadOwnedItem(input.portfolioId!, providerId, accessToken).then(() => undefined)
+      : loadProviderRows(providerId, accessToken).then(assertProviderCanAdd)
+  const [permissionResult, signed] = await Promise.allSettled([
+    permission,
+    activePortfolioStore.createSignedUploadUrl(imagePath, accessToken),
+  ])
+
+  if (permissionResult.status === 'rejected') throw permissionResult.reason
+  const { data, error } =
+    signed.status === 'fulfilled'
+      ? signed.value
+      : { data: null, error: { code: 'exception' } as DatabaseErrorLike }
   if (error || !data) {
     console.error('[portfolio] Signed upload URL failed', { code: error?.code ?? 'empty' })
     throw new AppError(
@@ -529,13 +541,17 @@ export async function createPortfolioItem(
 ): Promise<PortfolioDto> {
   if (!isOwnImagePath(input.imagePath, providerId)) throw invalidImagePath()
 
-  const rows = await loadProviderRows(providerId, accessToken)
+  // Daftar item dan info file dibaca paralel; keputusan tetap diambil berurutan di bawah.
+  const [rows, fileLookup] = await Promise.all([
+    loadProviderRows(providerId, accessToken),
+    lookupUploadedFile(input.imagePath, accessToken),
+  ])
   // Path yang sudah dipakai item lain tidak boleh dipakai ulang (dan file-nya tidak boleh dihapus).
   if (rows.some((row) => row.image_path === input.imagePath)) throw invalidImagePath()
 
   try {
     assertProviderCanAdd(rows)
-    await assertUploadedFileValid(input.imagePath, accessToken)
+    checkUploadedFile(fileLookup)
 
     const { data, error } = await activePortfolioStore.insert(providerId, input, accessToken)
     if (error) throw mapPortfolioDatabaseError('create', error)
@@ -561,23 +577,37 @@ export async function updatePortfolioItem(
   providerId: string,
   accessToken: string
 ): Promise<PortfolioDto> {
-  const current = await loadOwnedItem(id, providerId, accessToken)
+  const newPath = input.imagePath
+  const checkNewPath = newPath !== undefined && isOwnImagePath(newPath, providerId)
+
+  // Item, daftar item, dan info file baru dibaca paralel. Hasil kepemilikan tetap
+  // dievaluasi lebih dulu (404/403), baru path dan file.
+  const [owned, rowsResult, fileResult] = await Promise.allSettled([
+    loadOwnedItem(id, providerId, accessToken),
+    checkNewPath ? loadProviderRows(providerId, accessToken) : Promise.resolve(undefined),
+    checkNewPath ? lookupUploadedFile(newPath!, accessToken) : Promise.resolve(undefined),
+  ])
+  if (owned.status === 'rejected') throw owned.reason
+  const current = owned.value
+
   const oldPath = current.image_path
-  const replacingPhoto = input.imagePath !== undefined && input.imagePath !== oldPath
+  const replacingPhoto = newPath !== undefined && newPath !== oldPath
   const payload: UpdatePortfolioInput = { ...input }
   if (!replacingPhoto) delete payload.imagePath
 
-  let rows: PortfolioRow[] | undefined
   if (replacingPhoto) {
-    if (!isOwnImagePath(input.imagePath!, providerId)) throw invalidImagePath()
-    rows = await loadProviderRows(providerId, accessToken)
-    if (rows.some((row) => row.image_path === input.imagePath)) throw invalidImagePath()
+    if (!checkNewPath) throw invalidImagePath()
+    if (rowsResult.status === 'rejected') throw rowsResult.reason
+    if (rowsResult.value!.some((row) => row.image_path === newPath)) throw invalidImagePath()
   }
 
   if (Object.keys(payload).length === 0) return toDto(current)
 
   try {
-    if (replacingPhoto) await assertUploadedFileValid(input.imagePath!, accessToken)
+    if (replacingPhoto) {
+      if (fileResult.status === 'rejected') throw fileResult.reason
+      checkUploadedFile(fileResult.value!)
+    }
 
     const { data, error } = await activePortfolioStore.updateById(id, payload, accessToken)
     if (error) throw mapPortfolioDatabaseError('update', error)
@@ -590,7 +620,7 @@ export async function updatePortfolioItem(
     return toDto(data)
   } catch (error) {
     if (replacingPhoto) {
-      await discardUploadedFile(input.imagePath, providerId, accessToken)
+      await discardUploadedFile(newPath, providerId, accessToken)
     }
     throw error
   }
@@ -601,11 +631,23 @@ export async function deletePortfolioItem(
   providerId: string,
   accessToken: string
 ): Promise<{ item: PortfolioDto; fileCleanupFailed: boolean }> {
-  await loadOwnedItem(id, providerId, accessToken)
-
+  // Langsung hapus: RLS hanya mengizinkan baris milik sendiri. Kalau tidak ada baris yang
+  // terhapus, baru dicek apakah item tidak ada (404) atau milik penyedia lain (403).
   const { data, error } = await activePortfolioStore.deleteById(id, accessToken)
   if (error) throw mapPortfolioDatabaseError('delete', error)
-  if (!data) throw portfolioNotFound()
+  if (!data) {
+    await loadOwnedItem(id, providerId, accessToken)
+    throw portfolioNotFound()
+  }
+  if (data.provider_id !== providerId) {
+    // Tidak seharusnya terjadi (RLS), tapi jangan pernah menghapus file folder lain.
+    console.error('[portfolio] Deleted row owner mismatch', { action: 'delete' })
+    throw new AppError(
+      403,
+      'PORTFOLIO_OWNERSHIP_FORBIDDEN',
+      'Kamu tidak memiliki izin untuk mengelola portofolio milik penyedia lain.'
+    )
+  }
 
   // Baris sudah terhapus; file dihapus sesudahnya. Kalau gagal, data tetap terhapus
   // dan respons memberi tahu bahwa file masih tertinggal.
