@@ -164,7 +164,7 @@ Backend health check: http://localhost:4000/api/health
 ### 5. Menguji tiap role
 
 - Customer: buka `/register`, pilih Customer, daftar, verifikasi email bila diminta, lalu login. Pengguna diarahkan ke `/customer/dashboard`.
-- Provider: buka `/register`, pilih Penyedia Jasa. Provider baru berstatus `pending` dan diarahkan ke `/provider/verification`. Setelah operator mengubah `provider_verification_status` menjadi `verified`, login berikutnya diarahkan ke `/provider/dashboard`. Status `rejected` menampilkan alasan penolakan dan tombol pengajuan ulang.
+- Provider: buka `/register`, pilih Penyedia Jasa. Provider langsung diarahkan ke `/provider/dashboard` tanpa menunggu verifikasi admin.
 - Admin: daftarkan akun biasa melalui Supabase Dashboard atau registrasi, lalu ubah role menjadi `admin` dengan SQL di atas. Login diarahkan ke `/admin/dashboard`.
 
 Jangan meng-hardcode akun pada source code. Buat akun uji langsung di project Supabase Anda.

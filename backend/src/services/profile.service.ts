@@ -84,12 +84,7 @@ export async function getProfileForUser(
     )
   }
 
-  const providerVerificationStatus =
-    row.role === 'provider'
-      ? isProviderStatus(row.provider_verification_status)
-        ? row.provider_verification_status
-        : 'pending'
-      : null
+  const providerVerificationStatus = row.role === 'provider' ? 'verified' : null
 
   const email = row.email || fallbackEmail
   const fullName = row.full_name?.trim() || email.split('@')[0] || 'Pengguna LOKA'
@@ -112,10 +107,7 @@ export function redirectPathFor(profile: AuthProfile): string {
     case 'admin':
       return '/admin/dashboard'
     case 'provider':
-      if (profile.providerVerificationStatus === 'verified') {
-        return '/provider/dashboard'
-      }
-      return '/provider/verification'
+      return '/provider/dashboard'
     default:
       throw new AppError(
         403,
