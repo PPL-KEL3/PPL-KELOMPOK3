@@ -7,13 +7,15 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "tsc && node --test dist/tests/category-test-cases.test.js dist/tests/category.test.js dist/tests/service-test-cases.test.js dist/tests/service.test.js dist/tests/provider-profile.test.js",
+    "test": "tsc && node --test dist/tests/category-test-cases.test.js dist/tests/category.test.js dist/tests/service-test-cases.test.js dist/tests/service.test.js dist/tests/provider-profile.test.js dist/tests/package-test-cases.test.js dist/tests/package.test.js",
     "test:tpr127": "tsc && node --test dist/tests/category-test-cases.test.js",
     "test:tpr28": "tsc && node --test dist/tests/category.test.js",
     "test:tpr128": "tsc && node --test dist/tests/service-test-cases.test.js",
     "test:tpr32": "tsc && node --test dist/tests/service.test.js",
     "test:tpr60": "tsc && node --test dist/tests/provider-profile.test.js",
-    "test:tpr64": "tsc && node --test dist/tests/provider-profile.test.js"
+    "test:tpr64": "tsc && node --test dist/tests/provider-profile.test.js",
+    "test:tpr129": "tsc && node --test dist/tests/package-test-cases.test.js",
+    "test:tpr44": "tsc && node --test dist/tests/package.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.47.0",
