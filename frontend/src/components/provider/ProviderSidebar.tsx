@@ -11,6 +11,7 @@ import {
   IdCardIcon,
   LayoutDashboardIcon,
   LogOutIcon,
+  PackageIcon,
 } from '@/components/ui/AuthIcons'
 import { VERIFICATION_LABELS } from '@/lib/auth-types'
 
@@ -29,6 +30,7 @@ export const PROVIDER_NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', href: '/provider/dashboard', icon: LayoutDashboardIcon, match: 'exact' },
   { label: 'Daftar Jasa', href: '/provider/dashboard/services', icon: BriefcaseIcon, match: 'prefix' },
   { label: 'Profil Penyedia', href: '/provider/profile', icon: IdCardIcon, match: 'prefix' },
+  { label: 'Paket & Harga', href: '/provider/dashboard/packages', icon: PackageIcon, match: 'prefix' },
 ]
 
 function isActive(pathname: string, item: NavItem): boolean {
