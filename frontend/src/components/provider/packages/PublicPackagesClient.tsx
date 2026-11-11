@@ -67,10 +67,7 @@ export function PublicPackagesClient({ serviceId }: { serviceId: string }) {
 
       <div className="pkgpub-demo" role="note">
         <InfoIcon size={15} />
-        <span>
-          Halaman demo sementara (TPR-5, AC2) · dihapus saat halaman detail jasa
-          milik Vivi siap
-        </span>
+        <span>Halaman pratinjau paket dan harga</span>
       </div>
 
       <main className="pkgpub-body">
