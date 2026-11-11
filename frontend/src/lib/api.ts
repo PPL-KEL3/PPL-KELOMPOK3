@@ -518,51 +518,54 @@ export interface PortfolioCreatePayload {
 
 export type PortfolioUpdatePayload = Partial<PortfolioCreatePayload>
 
-async function uploadToSignedUrl(uploadUrl: string, file: File): Promise<void> {
-  let response: Response
-
-  try {
-    response = await fetch(uploadUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': file.type },
-      body: file,
-    })
-  } catch {
-    throw new ApiError(
+function uploadError(status: number, text: string): ApiError {
+  if (status === 0) {
+    return new ApiError(
       0,
       'UPLOAD_FAILED',
       'Foto gagal diunggah. Periksa koneksi lalu coba lagi.'
     )
   }
-
-  if (response.ok) return
-
-  const text = await response.text().catch(() => '')
-  const tooLarge =
-    response.status === 413 || /413|too large|exceeded/i.test(text)
-  const invalidType = /mime|content.?type/i.test(text)
-
-  if (tooLarge) {
-    throw new ApiError(
-      response.status,
-      'FILE_TOO_LARGE',
-      'Ukuran foto melebihi 5 MB.'
-    )
+  if (status === 413 || /413|too large|exceeded/i.test(text)) {
+    return new ApiError(status, 'FILE_TOO_LARGE', 'Ukuran foto melebihi 5 MB.')
   }
-
-  if (invalidType) {
-    throw new ApiError(
-      response.status,
-      'INVALID_FILE_TYPE',
-      'Format foto harus JPG atau PNG.'
-    )
+  if (/mime|content.?type/i.test(text)) {
+    return new ApiError(status, 'INVALID_FILE_TYPE', 'Format foto harus JPG atau PNG.')
   }
+  return new ApiError(status, 'UPLOAD_FAILED', 'Foto gagal diunggah. Coba lagi.')
+}
 
-  throw new ApiError(
-    response.status,
-    'UPLOAD_FAILED',
-    'Foto gagal diunggah. Coba lagi.'
-  )
+/**
+ * Mengunggah file langsung ke signed upload URL Supabase (tidak lewat backend).
+ * Memakai XMLHttpRequest karena `fetch` belum bisa melaporkan progres unggah.
+ */
+function uploadToSignedUrl(
+  uploadUrl: string,
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('PUT', uploadUrl)
+    xhr.setRequestHeader('Content-Type', file.type)
+
+    xhr.upload.onprogress = (event) => {
+      if (onProgress && event.lengthComputable && event.total > 0) {
+        onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)))
+      }
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(100)
+        resolve()
+      } else {
+        reject(uploadError(xhr.status, xhr.responseText ?? ''))
+      }
+    }
+    xhr.onerror = () => reject(uploadError(0, ''))
+    xhr.onabort = () => reject(uploadError(0, ''))
+    xhr.send(file)
+  })
 }
 
 export const portfolioApi = {
@@ -586,8 +589,8 @@ export const portfolioApi = {
     )
   },
 
-  uploadFile(uploadUrl: string, file: File) {
-    return uploadToSignedUrl(uploadUrl, file)
+  uploadFile(uploadUrl: string, file: File, onProgress?: (percent: number) => void) {
+    return uploadToSignedUrl(uploadUrl, file, onProgress)
   },
 
   create(input: PortfolioCreatePayload) {
