@@ -120,6 +120,7 @@ BACKEND_URL=http://localhost:4000
 
 Jangan menaruh `SUPABASE_SERVICE_ROLE_KEY` di frontend. Implementasi ini tidak membutuhkannya.
 
+
 ## Deployment terpisah di Vercel
 
 Deploy sebagai dua project Vercel dari repository yang sama:
