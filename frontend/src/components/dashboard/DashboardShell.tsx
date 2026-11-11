@@ -7,6 +7,7 @@ import { useAuth } from '@/components/auth/AuthProvider'
 import { useToast } from '@/components/ui/ToastProvider'
 import { LokaLogo } from '@/components/ui/LokaLogo'
 import { LogOutIcon } from '@/components/ui/AuthIcons'
+import { useInsideProviderSidebar } from '@/components/provider/ProviderSidebarContext'
 import {
   ROLE_LABELS,
   VERIFICATION_LABELS,
@@ -39,6 +40,7 @@ export function DashboardShell({
   const router = useRouter()
   const toast = useToast()
   const [loggingOut, setLoggingOut] = useState(false)
+  const insideSidebar = useInsideProviderSidebar()
 
   async function handleLogout() {
     if (loggingOut) return
@@ -60,6 +62,22 @@ export function DashboardShell({
     user.role === 'provider' && user.providerVerificationStatus
       ? VERIFICATION_LABELS[user.providerVerificationStatus as ProviderVerificationStatus]
       : ROLE_LABELS[user.role]
+
+  if (insideSidebar) {
+    return (
+      <main className="dash-main dash-main--in-sidebar">
+        <div className="dash-main__inner">
+          <div className="dash-hero">
+            <p className="dash-hero__eyebrow">{eyebrow}</p>
+            <h1>{title}</h1>
+            <p>{description}</p>
+          </div>
+
+          {children}
+        </div>
+      </main>
+    )
+  }
 
   return (
     <div className="dash-page">
