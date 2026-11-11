@@ -584,4 +584,3 @@ export async function deleteServiceListing(
 
   return mapServiceListingRow(data)
 }
-
