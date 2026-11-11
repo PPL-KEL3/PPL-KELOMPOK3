@@ -6,6 +6,7 @@ import type {
   ServiceArea,
 } from '@/types/provider'
 import type { PackageItem } from '@/types/package'
+import type { PortfolioContentType, PortfolioItem } from '@/types/portfolio'
 import type { ServiceItem } from '@/types/service'
 
 export class ApiError extends Error {
@@ -463,6 +464,146 @@ export const serviceAreaApi = {
   remove(areaId: string) {
     return request<ServiceAreaMutationApiResult>(
       `/providers/me/service-areas/${encodeURIComponent(areaId)}`,
+      {
+        method: 'DELETE',
+      }
+    )
+  },
+}
+
+export interface PortfolioListResult {
+  items: PortfolioItem[]
+}
+
+export interface PortfolioMineResult {
+  items: PortfolioItem[]
+  total: number
+  limit: number
+  remainingSlots: number
+}
+
+export interface PortfolioUploadUrlPayload {
+  fileName: string
+  contentType: PortfolioContentType
+  size: number
+}
+
+export interface PortfolioUploadUrlResult {
+  uploadUrl: string
+  imagePath: string
+}
+
+export interface PortfolioItemResult {
+  item: PortfolioItem
+  message?: string
+}
+
+export interface PortfolioDeleteApiResult {
+  deletedId: string
+  fileCleanupFailed: boolean
+  message: string
+}
+
+export interface PortfolioCreatePayload {
+  title: string
+  description: string | null
+  imagePath: string
+}
+
+export type PortfolioUpdatePayload = Partial<PortfolioCreatePayload>
+
+async function uploadToSignedUrl(uploadUrl: string, file: File): Promise<void> {
+  let response: Response
+
+  try {
+    response = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    })
+  } catch {
+    throw new ApiError(
+      0,
+      'UPLOAD_FAILED',
+      'Foto gagal diunggah. Periksa koneksi lalu coba lagi.'
+    )
+  }
+
+  if (response.ok) return
+
+  const text = await response.text().catch(() => '')
+  const tooLarge =
+    response.status === 413 || /413|too large|exceeded/i.test(text)
+  const invalidType = /mime|content.?type/i.test(text)
+
+  if (tooLarge) {
+    throw new ApiError(
+      response.status,
+      'FILE_TOO_LARGE',
+      'Ukuran foto melebihi 5 MB.'
+    )
+  }
+
+  if (invalidType) {
+    throw new ApiError(
+      response.status,
+      'INVALID_FILE_TYPE',
+      'Format foto harus JPG atau PNG.'
+    )
+  }
+
+  throw new ApiError(
+    response.status,
+    'UPLOAD_FAILED',
+    'Foto gagal diunggah. Coba lagi.'
+  )
+}
+
+export const portfolioApi = {
+  listMine() {
+    return request<PortfolioMineResult>('/providers/me/portfolio')
+  },
+
+  listByProvider(providerId: string) {
+    return request<PortfolioListResult>(
+      `/providers/${encodeURIComponent(providerId)}/portfolio`
+    )
+  },
+
+  requestUploadUrl(input: PortfolioUploadUrlPayload) {
+    return request<PortfolioUploadUrlResult>(
+      '/providers/me/portfolio/upload-url',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }
+    )
+  },
+
+  uploadFile(uploadUrl: string, file: File) {
+    return uploadToSignedUrl(uploadUrl, file)
+  },
+
+  create(input: PortfolioCreatePayload) {
+    return request<PortfolioItemResult>('/providers/me/portfolio', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  },
+
+  update(id: string, input: PortfolioUpdatePayload) {
+    return request<PortfolioItemResult>(
+      `/providers/me/portfolio/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }
+    )
+  },
+
+  remove(id: string) {
+    return request<PortfolioDeleteApiResult>(
+      `/providers/me/portfolio/${encodeURIComponent(id)}`,
       {
         method: 'DELETE',
       }
