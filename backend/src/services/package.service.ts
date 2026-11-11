@@ -40,10 +40,21 @@ export interface UpdatePackageInput {
   isActive?: boolean
 }
 
+export interface ServiceOwnerRow {
+  id: string
+  provider_id: string
+}
+
 type StoreResult<T> = Promise<{ data: T; error: DatabaseErrorLike | null }>
+
+export const MAX_PACKAGES_PER_SERVICE = 10
 
 export interface PackageStore {
   isServicePubliclyVisible(serviceId: string): StoreResult<boolean | null>
+  findServiceOwner(
+    serviceId: string,
+    accessToken: string
+  ): StoreResult<ServiceOwnerRow | null>
   findPublicByServiceId(serviceId: string): StoreResult<PackageRow[] | null>
   findByServiceId(serviceId: string, accessToken: string): StoreResult<PackageRow[] | null>
   findById(id: string, accessToken: string): StoreResult<PackageRow | null>
@@ -138,6 +149,16 @@ const supabasePackageStore: PackageStore = {
       { p_service_id: serviceId }
     )
     return { data: typeof data === 'boolean' ? data : null, error }
+  },
+
+  async findServiceOwner(serviceId, accessToken) {
+    ensureSupabaseConfigured()
+    const { data, error } = await createSupabaseClient(accessToken)
+      .from('services')
+      .select('id, provider_id')
+      .eq('id', serviceId)
+      .maybeSingle()
+    return { data: (data as ServiceOwnerRow | null) ?? null, error }
   },
 
   async findPublicByServiceId(serviceId) {
@@ -247,22 +268,87 @@ export async function listPublicPackages(serviceId: string): Promise<PackageDto[
   return (data ?? []).map(mapPackageRow)
 }
 
-export async function listProviderPackages(
+function duplicateNameError(): AppError {
+  return new AppError(409, 'DUPLICATE_PACKAGE_NAME', 'Nama paket sudah dipakai di jasa ini.', {
+    name: 'Nama paket sudah dipakai di jasa ini.',
+  })
+}
+
+function sameName(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase()
+}
+
+// Kepemilikan dicek di backend (pesan jelas) dan tetap dijaga RLS di database.
+async function assertServiceOwnedBy(
+  serviceId: string,
+  providerId: string,
+  accessToken: string
+): Promise<void> {
+  const { data, error } = await activePackageStore.findServiceOwner(serviceId, accessToken)
+  if (error) throw mapPackageDatabaseError('find_service_owner', error)
+  if (!data) {
+    throw new AppError(404, 'SERVICE_NOT_FOUND', 'Jasa tidak ditemukan.')
+  }
+  if (data.provider_id !== providerId) {
+    throw new AppError(
+      403,
+      'PACKAGE_OWNERSHIP_FORBIDDEN',
+      'Kamu tidak memiliki izin untuk mengelola paket di jasa milik penyedia lain.'
+    )
+  }
+}
+
+async function loadOwnedPackage(
+  id: string,
+  providerId: string,
+  accessToken: string
+): Promise<PackageRow> {
+  const { data, error } = await activePackageStore.findById(id, accessToken)
+  if (error) throw mapPackageDatabaseError('find_package', error)
+  if (!data) throw packageNotFound()
+  await assertServiceOwnedBy(data.service_id, providerId, accessToken)
+  return data
+}
+
+async function loadServicePackages(
   serviceId: string,
   accessToken: string
-): Promise<PackageDto[]> {
-  const { data, error } = await activePackageStore.findByServiceId(
-    serviceId,
-    accessToken
-  )
+): Promise<PackageRow[]> {
+  const { data, error } = await activePackageStore.findByServiceId(serviceId, accessToken)
   if (error) throw mapPackageDatabaseError('list_provider', error)
-  return (data ?? []).map(mapPackageRow)
+  return data ?? []
+}
+
+export async function listProviderPackages(
+  serviceId: string,
+  providerId: string,
+  accessToken: string
+): Promise<PackageDto[]> {
+  await assertServiceOwnedBy(serviceId, providerId, accessToken)
+  const rows = await loadServicePackages(serviceId, accessToken)
+  return rows.map(mapPackageRow)
 }
 
 export async function createPackage(
   input: CreatePackageInput,
+  providerId: string,
   accessToken: string
 ): Promise<PackageDto> {
+  await assertServiceOwnedBy(input.serviceId, providerId, accessToken)
+
+  // Batas 10 paket dicek di backend saja (tanpa trigger database), keputusan TPR-5.
+  const existing = await loadServicePackages(input.serviceId, accessToken)
+  if (existing.length >= MAX_PACKAGES_PER_SERVICE) {
+    throw new AppError(
+      409,
+      'PACKAGE_LIMIT_REACHED',
+      `Maksimal ${MAX_PACKAGES_PER_SERVICE} paket per jasa. Hapus paket lama untuk menambah yang baru.`
+    )
+  }
+  if (existing.some((row) => sameName(row.name, input.name))) {
+    throw duplicateNameError()
+  }
+
   const { data, error } = await activePackageStore.insert(input, accessToken)
   if (error) throw mapPackageDatabaseError('create', error)
   if (!data) {
@@ -278,8 +364,18 @@ export async function createPackage(
 export async function updatePackage(
   id: string,
   input: UpdatePackageInput,
+  providerId: string,
   accessToken: string
 ): Promise<PackageDto> {
+  const current = await loadOwnedPackage(id, providerId, accessToken)
+
+  if (input.name !== undefined && !sameName(input.name, current.name)) {
+    const siblings = await loadServicePackages(current.service_id, accessToken)
+    if (siblings.some((row) => row.id !== id && sameName(row.name, input.name!))) {
+      throw duplicateNameError()
+    }
+  }
+
   const { data, error } = await activePackageStore.updateById(id, input, accessToken)
   if (error) throw mapPackageDatabaseError('update', error)
   if (!data) throw packageNotFound()
@@ -288,8 +384,11 @@ export async function updatePackage(
 
 export async function deletePackage(
   id: string,
+  providerId: string,
   accessToken: string
 ): Promise<PackageDto> {
+  await loadOwnedPackage(id, providerId, accessToken)
+
   const { data, error } = await activePackageStore.softDeleteById(id, accessToken)
   if (error) throw mapPackageDatabaseError('delete', error)
   if (!data) throw packageNotFound()
