@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 
 export const metadata: Metadata = {
@@ -13,44 +12,8 @@ export default function ProviderDashboardPage() {
       title="Keahlianmu sudah siap dikenal lebih luas."
       description="Akun penyedia jasa kamu sudah terverifikasi. Kelola daftar layanan, kategori, deskripsi, dan harga dasar agar pelanggan dapat menemukan jasa kamu."
     >
+      <h2 className="prov-section-label">Status &amp; keamanan akun</h2>
       <section className="dash-grid">
-        <article className="dash-card">
-          <span className="dash-card__eyebrow">Identitas Usaha</span>
-          <h2>Profil Penyedia Jasa</h2>
-          <p>
-            Lengkapi nama usaha, kontak WhatsApp, alamat, area layanan, kategori
-            utama, dan jam operasional agar pelanggan dapat mengenal dan
-            menghubungi kamu.
-          </p>
-          <div style={{ marginTop: '16px' }}>
-            <Link
-              href="/provider/profile"
-              className="dash-logout"
-              style={{ display: 'inline-flex', textDecoration: 'none' }}
-            >
-              Kelola Profil Penyedia
-            </Link>
-          </div>
-        </article>
-
-        <article className="dash-card">
-          <span className="dash-card__eyebrow">Katalog Layanan</span>
-          <h2>Manajemen Daftar Jasa</h2>
-          <p>
-            Tambahkan layanan baru, perbarui informasi dan harga dasar, atau
-            nonaktifkan layanan yang sedang tidak ditawarkan.
-          </p>
-          <div style={{ marginTop: '16px' }}>
-            <Link
-              href="/provider/dashboard/services"
-              className="dash-logout"
-              style={{ display: 'inline-flex', textDecoration: 'none' }}
-            >
-              Kelola Daftar Jasa
-            </Link>
-          </div>
-        </article>
-
         <article className="dash-card">
           <span className="dash-card__eyebrow">Status verifikasi</span>
           <h2>Terverifikasi</h2>
