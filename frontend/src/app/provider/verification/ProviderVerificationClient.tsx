@@ -111,9 +111,16 @@ export default function ProviderVerificationClient() {
           <h2>Data penyedia jasa</h2>
           <p>
             Pastikan profil usaha, keterampilan, dan informasi kontak kamu akurat.
-            Pengelolaan portofolio dan layanan akan tersedia pada tahap pengembangan
-            berikutnya.
+            Kamu dapat melengkapi profil dan kontak WhatsApp sekarang, lalu
+            mempublikasikannya kapan saja.
           </p>
+          <Link
+            href="/provider/profile"
+            className="auth-submit auth-submit--link dash-action"
+          >
+            Lengkapi Profil Penyedia
+            <ArrowRightIcon size={18} />
+          </Link>
         </article>
       </section>
     </DashboardShell>

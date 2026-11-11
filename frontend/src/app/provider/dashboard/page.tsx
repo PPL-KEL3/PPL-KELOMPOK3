@@ -15,6 +15,25 @@ export default function ProviderDashboardPage() {
     >
       <section className="dash-grid">
         <article className="dash-card">
+          <span className="dash-card__eyebrow">Identitas Usaha</span>
+          <h2>Profil Penyedia Jasa</h2>
+          <p>
+            Lengkapi nama usaha, kontak WhatsApp, alamat, area layanan, kategori
+            utama, dan jam operasional agar pelanggan dapat mengenal dan
+            menghubungi kamu.
+          </p>
+          <div style={{ marginTop: '16px' }}>
+            <Link
+              href="/provider/profile"
+              className="dash-logout"
+              style={{ display: 'inline-flex', textDecoration: 'none' }}
+            >
+              Kelola Profil Penyedia
+            </Link>
+          </div>
+        </article>
+
+        <article className="dash-card">
           <span className="dash-card__eyebrow">Katalog Layanan</span>
           <h2>Manajemen Daftar Jasa</h2>
           <p>

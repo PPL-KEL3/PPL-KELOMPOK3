@@ -1,5 +1,10 @@
 import type { AuthUser } from './auth-types'
 import type { Category } from '@/types/category'
+import type {
+  OperatingHours,
+  ProviderProfile,
+  ServiceArea,
+} from '@/types/provider'
 import type { ServiceItem } from '@/types/service'
 
 export class ApiError extends Error {
@@ -297,6 +302,103 @@ export const serviceApi = {
   remove(id: string) {
     return request<ServiceDeleteApiResult>(
       `/services/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+      }
+    )
+  },
+}
+
+export interface ProviderProfilePayload {
+  businessName: string
+  bio: string | null
+  whatsappNumber: string
+  address: string
+  serviceArea: string
+  operatingHours: OperatingHours
+  primaryCategoryId: string
+  isPublic: boolean
+}
+
+export interface ProviderProfileResult {
+  profile: ProviderProfile | null
+  message?: string
+}
+
+export interface PublicProviderResult {
+  provider: ProviderProfile
+  services: ServiceItem[]
+}
+
+export const providerProfileApi = {
+  getMine() {
+    return request<ProviderProfileResult>('/providers/me')
+  },
+
+  upsertMine(input: ProviderProfilePayload) {
+    return request<ProviderProfileResult>('/providers/me', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    })
+  },
+
+  updateMine(input: Partial<ProviderProfilePayload>) {
+    return request<ProviderProfileResult>('/providers/me', {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
+  },
+
+  getPublic(providerId: string) {
+    return request<PublicProviderResult>(
+      `/providers/${encodeURIComponent(providerId)}`
+    )
+  },
+}
+
+export interface ServiceAreaListResult {
+  serviceAreas: ServiceArea[]
+}
+
+export interface ServiceAreaMutationApiResult {
+  serviceArea: ServiceArea
+  serviceAreas: ServiceArea[]
+  message: string
+}
+
+export interface ServiceAreaPayload {
+  areaName: string
+  radiusKm: number
+}
+
+export const serviceAreaApi = {
+  listMine() {
+    return request<ServiceAreaListResult>('/providers/me/service-areas')
+  },
+
+  create(input: ServiceAreaPayload) {
+    return request<ServiceAreaMutationApiResult>(
+      '/providers/me/service-areas',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }
+    )
+  },
+
+  update(areaId: string, input: Partial<ServiceAreaPayload>) {
+    return request<ServiceAreaMutationApiResult>(
+      `/providers/me/service-areas/${encodeURIComponent(areaId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }
+    )
+  },
+
+  remove(areaId: string) {
+    return request<ServiceAreaMutationApiResult>(
+      `/providers/me/service-areas/${encodeURIComponent(areaId)}`,
       {
         method: 'DELETE',
       }

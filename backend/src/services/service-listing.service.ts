@@ -58,6 +58,7 @@ export interface ServiceListingStore {
   }>
   findPublic(filter?: {
     categoryId?: string
+    providerId?: string
   }): Promise<{
     data: ServiceListingRow[] | null
     error: DatabaseErrorLike | null
@@ -245,6 +246,10 @@ const supabaseServiceListingStore: ServiceListingStore = {
       query = query.eq('category_id', filter.categoryId)
     }
 
+    if (filter?.providerId) {
+      query = query.eq('provider_id', filter.providerId)
+    }
+
     const { data, error } = await query
     return {
       data: (data as ServiceListingRow[] | null) ?? null,
@@ -401,6 +406,7 @@ function assertServiceOwnership(
 
 export async function listPublicServices(filter?: {
   categoryId?: string
+  providerId?: string
 }): Promise<ServiceListingDto[]> {
   const { data, error } = await activeServiceListingStore.findPublic(filter)
 
@@ -578,4 +584,3 @@ export async function deleteServiceListing(
 
   return mapServiceListingRow(data)
 }
-

@@ -161,3 +161,12 @@ export function SparkIcon(props: IconProps) {
     </svg>
   )
 }
+
+export function RefreshIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M20 11a8 8 0 0 0-14.9-4M4 4v5h5" />
+      <path d="M4 13a8 8 0 0 0 14.9 4M20 20v-5h-5" />
+    </svg>
+  )
+}

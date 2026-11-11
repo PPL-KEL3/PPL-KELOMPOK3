@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { formatRupiah } from '@/data/mock-services'
 import { useServices } from '@/hooks/useServices'
 
@@ -38,13 +39,21 @@ export function PublishedServicesCatalog() {
             <span className="dash-card__eyebrow">{service.categoryName}</span>
             <h2>{service.name}</h2>
             <p>{service.description}</p>
-            <p style={{ marginTop: '10px', fontWeight: 800 }}>
-              Mulai {formatRupiah(service.price)}
+            <p className="catalog-provider">
+              Oleh {service.providerName?.trim() || 'Penyedia Jasa LOKA'}
             </p>
+            <div className="catalog-service-footer">
+              <strong>Mulai {formatRupiah(service.price)}</strong>
+              <Link
+                href={`/providers/${service.providerId}`}
+                className="catalog-profile-link"
+              >
+                Lihat Profil
+              </Link>
+            </div>
           </article>
         ))}
       </div>
     </section>
   )
 }
-
