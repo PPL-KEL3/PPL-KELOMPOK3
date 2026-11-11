@@ -5,6 +5,7 @@ import type {
   ProviderProfile,
   ServiceArea,
 } from '@/types/provider'
+import type { PackageItem } from '@/types/package'
 import type { ServiceItem } from '@/types/service'
 
 export class ApiError extends Error {
@@ -302,6 +303,69 @@ export const serviceApi = {
   remove(id: string) {
     return request<ServiceDeleteApiResult>(
       `/services/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+      }
+    )
+  },
+}
+
+export interface PackageListResult {
+  packages: PackageItem[]
+}
+
+export interface PackageItemResult {
+  package: PackageItem
+  message?: string
+}
+
+export interface PackageDeleteApiResult {
+  package: PackageItem
+  deletedId: string
+  message: string
+}
+
+export interface PackageMutationPayload {
+  serviceId: string
+  name: string
+  description: string | null
+  price: number
+  isActive: boolean
+}
+
+export const packageApi = {
+  listByService(serviceId: string) {
+    return request<PackageListResult>(
+      `/services/${encodeURIComponent(serviceId)}/packages`
+    )
+  },
+
+  listMine(serviceId: string) {
+    return request<PackageListResult>(
+      `/packages/mine?serviceId=${encodeURIComponent(serviceId)}`
+    )
+  },
+
+  create(input: PackageMutationPayload) {
+    return request<PackageItemResult>('/packages', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  },
+
+  update(id: string, input: Partial<Omit<PackageMutationPayload, 'serviceId'>>) {
+    return request<PackageItemResult>(
+      `/packages/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }
+    )
+  },
+
+  remove(id: string) {
+    return request<PackageDeleteApiResult>(
+      `/packages/${encodeURIComponent(id)}`,
       {
         method: 'DELETE',
       }
