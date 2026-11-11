@@ -9,6 +9,7 @@ import type { DatabaseErrorLike } from './category.service'
 
 export const PORTFOLIO_BUCKET = 'portfolio'
 export const MAX_PORTFOLIO_ITEMS = 20
+export const MAX_PORTFOLIO_FILE_SIZE = 5 * 1024 * 1024
 
 export interface PortfolioDto {
   id: string
@@ -47,6 +48,12 @@ export interface UploadUrlInput {
   fileName: string
   contentType: string
   size: number
+  /**
+   * `replace` = ganti foto item yang sudah ada, tidak dicek batas 20 item.
+   * Wajib disertai `portfolioId` milik penyedia itu sendiri.
+   */
+  purpose: 'create' | 'replace'
+  portfolioId?: string
 }
 
 export interface StoredFileInfo {
@@ -130,6 +137,10 @@ export function mapPortfolioDatabaseError(
 
   if (code === '23514') {
     return new AppError(400, 'VALIDATION_ERROR', 'Data portofolio tidak valid.')
+  }
+
+  if (code === '23505') {
+    return new AppError(400, 'INVALID_IMAGE_PATH', 'Lokasi foto tidak valid. Unggah ulang fotonya.')
   }
 
   if (code === '22P02') {
@@ -363,6 +374,113 @@ export async function listProviderPortfolio(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Validasi file, path, batas, dan kepemilikan (TPR-47)
+// ---------------------------------------------------------------------------
+
+function limitReached(): AppError {
+  return new AppError(
+    409,
+    'PORTFOLIO_LIMIT_REACHED',
+    `Maksimal ${MAX_PORTFOLIO_ITEMS} item portofolio. Hapus item lama untuk menambah yang baru.`
+  )
+}
+
+function invalidImagePath(): AppError {
+  return new AppError(400, 'INVALID_IMAGE_PATH', 'Lokasi foto tidak valid. Unggah ulang fotonya.')
+}
+
+function assertProviderCanAdd(rows: PortfolioRow[]): void {
+  if (rows.length >= MAX_PORTFOLIO_ITEMS) throw limitReached()
+}
+
+const IMAGE_PATH_PATTERN =
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png)$/
+
+/**
+ * Path dari klien tidak dipercaya: harus `{providerId}/{uuid}.jpg|png`, persis format
+ * yang dibuat `createUploadUrl`, sehingga tidak bisa menunjuk folder penyedia lain.
+ */
+export function isOwnImagePath(imagePath: string, providerId: string): boolean {
+  const match = IMAGE_PATH_PATTERN.exec(imagePath)
+  return match !== null && match[1] === providerId.toLowerCase()
+}
+
+/**
+ * Memastikan file hasil unggah benar-benar ada di bucket dan sesuai batas.
+ * File yang melanggar batas dihapus supaya tidak menjadi file yatim.
+ */
+async function assertUploadedFileValid(imagePath: string, accessToken: string): Promise<void> {
+  const { data, error } = await activePortfolioStore.findFile(imagePath, accessToken)
+  if (error) {
+    console.error('[portfolio] File lookup failed', { code: error.code ?? 'unknown' })
+    throw new AppError(
+      502,
+      'PORTFOLIO_SERVICE_ERROR',
+      'Foto belum bisa diperiksa. Silakan coba lagi.'
+    )
+  }
+  if (!data) {
+    throw new AppError(
+      400,
+      'UPLOAD_NOT_FOUND',
+      'Foto belum terunggah. Pilih foto lalu simpan lagi.'
+    )
+  }
+
+  if (data.size !== null && data.size > MAX_PORTFOLIO_FILE_SIZE) {
+    throw new AppError(400, 'FILE_TOO_LARGE', 'Ukuran foto maksimal 5 MB.')
+  }
+  if (data.contentType !== null && !(data.contentType in EXTENSION_BY_CONTENT_TYPE)) {
+    throw new AppError(400, 'INVALID_FILE_TYPE', 'Format foto harus JPG atau PNG.')
+  }
+}
+
+/**
+ * Menghapus file baru yang sudah terunggah tapi gagal disimpan. Hanya untuk path
+ * milik penyedia itu sendiri yang belum dipakai item mana pun.
+ */
+export async function discardUploadedFile(
+  imagePath: string | undefined,
+  providerId: string,
+  accessToken: string,
+  knownRows?: PortfolioRow[]
+): Promise<void> {
+  if (!imagePath || !isOwnImagePath(imagePath, providerId)) return
+  try {
+    const rows = knownRows ?? (await loadProviderRows(providerId, accessToken))
+    if (rows.some((row) => row.image_path === imagePath)) return
+    await removeFilesQuietly([imagePath], accessToken, 'discard_unsaved_upload')
+  } catch {
+    console.error('[portfolio] File cleanup failed', {
+      action: 'discard_unsaved_upload',
+      code: 'exception',
+    })
+  }
+}
+
+async function loadOwnedItem(
+  id: string,
+  providerId: string,
+  accessToken: string
+): Promise<PortfolioRow> {
+  const { data, error } = await activePortfolioStore.findById(id, accessToken)
+  if (error) throw mapPortfolioDatabaseError('find', error)
+  if (!data) throw portfolioNotFound()
+  if (data.provider_id !== providerId) {
+    throw new AppError(
+      403,
+      'PORTFOLIO_OWNERSHIP_FORBIDDEN',
+      'Kamu tidak memiliki izin untuk mengelola portofolio milik penyedia lain.'
+    )
+  }
+  return data
+}
+
+// ---------------------------------------------------------------------------
+// Operasi
+// ---------------------------------------------------------------------------
+
 export async function createUploadUrl(
   input: UploadUrlInput,
   providerId: string,
@@ -371,6 +489,19 @@ export async function createUploadUrl(
   const extension = EXTENSION_BY_CONTENT_TYPE[input.contentType]
   if (!extension) {
     throw new AppError(400, 'INVALID_FILE_TYPE', 'Format foto harus JPG atau PNG.')
+  }
+  if (input.size > MAX_PORTFOLIO_FILE_SIZE) {
+    throw new AppError(400, 'FILE_TOO_LARGE', 'Ukuran foto maksimal 5 MB.')
+  }
+
+  // Tambah item baru ditolak lebih awal bila sudah 20 item. Ganti foto tidak menambah item,
+  // tapi hanya boleh untuk item yang ada dan milik sendiri (404/403), supaya `replace`
+  // tidak bisa dipakai melewati batas 20 untuk mengunggah file tanpa disimpan.
+  if (input.purpose === 'replace') {
+    if (!input.portfolioId) throw portfolioNotFound()
+    await loadOwnedItem(input.portfolioId, providerId, accessToken)
+  } else {
+    assertProviderCanAdd(await loadProviderRows(providerId, accessToken))
   }
 
   // Nama file dibuat ulang dengan UUID; nama asli tidak dipakai di path.
@@ -396,16 +527,32 @@ export async function createPortfolioItem(
   providerId: string,
   accessToken: string
 ): Promise<PortfolioDto> {
-  const { data, error } = await activePortfolioStore.insert(providerId, input, accessToken)
-  if (error) throw mapPortfolioDatabaseError('create', error)
-  if (!data) {
-    throw new AppError(
-      502,
-      'PORTFOLIO_SERVICE_ERROR',
-      'Portofolio baru gagal disimpan. Silakan coba lagi.'
-    )
+  if (!isOwnImagePath(input.imagePath, providerId)) throw invalidImagePath()
+
+  const rows = await loadProviderRows(providerId, accessToken)
+  // Path yang sudah dipakai item lain tidak boleh dipakai ulang (dan file-nya tidak boleh dihapus).
+  if (rows.some((row) => row.image_path === input.imagePath)) throw invalidImagePath()
+
+  try {
+    assertProviderCanAdd(rows)
+    await assertUploadedFileValid(input.imagePath, accessToken)
+
+    const { data, error } = await activePortfolioStore.insert(providerId, input, accessToken)
+    if (error) throw mapPortfolioDatabaseError('create', error)
+    if (!data) {
+      throw new AppError(
+        502,
+        'PORTFOLIO_SERVICE_ERROR',
+        'Portofolio baru gagal disimpan. Silakan coba lagi.'
+      )
+    }
+    return toDto(data)
+  } catch (error) {
+    // Simpan gagal setelah file terunggah: hapus file baru supaya tidak yatim.
+    // Daftar item dimuat ulang, supaya file milik item lain tidak ikut terhapus.
+    await discardUploadedFile(input.imagePath, providerId, accessToken)
+    throw error
   }
-  return toDto(data)
 }
 
 export async function updatePortfolioItem(
@@ -414,21 +561,39 @@ export async function updatePortfolioItem(
   providerId: string,
   accessToken: string
 ): Promise<PortfolioDto> {
-  const current = await activePortfolioStore.findById(id, accessToken)
-  if (current.error) throw mapPortfolioDatabaseError('find', current.error)
-  if (!current.data || current.data.provider_id !== providerId) throw portfolioNotFound()
+  const current = await loadOwnedItem(id, providerId, accessToken)
+  const oldPath = current.image_path
+  const replacingPhoto = input.imagePath !== undefined && input.imagePath !== oldPath
+  const payload: UpdatePortfolioInput = { ...input }
+  if (!replacingPhoto) delete payload.imagePath
 
-  const { data, error } = await activePortfolioStore.updateById(id, input, accessToken)
-  if (error) throw mapPortfolioDatabaseError('update', error)
-  if (!data) throw portfolioNotFound()
-
-  // Foto lama dihapus hanya setelah data baru tersimpan. Gagal hapus tidak menggagalkan respons.
-  const oldPath = current.data.image_path
-  if (input.imagePath !== undefined && input.imagePath !== oldPath) {
-    await removeFilesQuietly([oldPath], accessToken, 'replace_old_file')
+  let rows: PortfolioRow[] | undefined
+  if (replacingPhoto) {
+    if (!isOwnImagePath(input.imagePath!, providerId)) throw invalidImagePath()
+    rows = await loadProviderRows(providerId, accessToken)
+    if (rows.some((row) => row.image_path === input.imagePath)) throw invalidImagePath()
   }
 
-  return toDto(data)
+  if (Object.keys(payload).length === 0) return toDto(current)
+
+  try {
+    if (replacingPhoto) await assertUploadedFileValid(input.imagePath!, accessToken)
+
+    const { data, error } = await activePortfolioStore.updateById(id, payload, accessToken)
+    if (error) throw mapPortfolioDatabaseError('update', error)
+    if (!data) throw portfolioNotFound()
+
+    // Foto lama dihapus hanya setelah data baru tersimpan. Gagal hapus tidak menggagalkan respons.
+    if (replacingPhoto) {
+      await removeFilesQuietly([oldPath], accessToken, 'replace_old_file')
+    }
+    return toDto(data)
+  } catch (error) {
+    if (replacingPhoto) {
+      await discardUploadedFile(input.imagePath, providerId, accessToken)
+    }
+    throw error
+  }
 }
 
 export async function deletePortfolioItem(
@@ -436,15 +601,14 @@ export async function deletePortfolioItem(
   providerId: string,
   accessToken: string
 ): Promise<{ item: PortfolioDto; fileCleanupFailed: boolean }> {
-  const current = await activePortfolioStore.findById(id, accessToken)
-  if (current.error) throw mapPortfolioDatabaseError('find', current.error)
-  if (!current.data || current.data.provider_id !== providerId) throw portfolioNotFound()
+  await loadOwnedItem(id, providerId, accessToken)
 
   const { data, error } = await activePortfolioStore.deleteById(id, accessToken)
   if (error) throw mapPortfolioDatabaseError('delete', error)
   if (!data) throw portfolioNotFound()
 
-  // Baris sudah terhapus; file dihapus sesudahnya. Kalau gagal, data tetap terhapus.
+  // Baris sudah terhapus; file dihapus sesudahnya. Kalau gagal, data tetap terhapus
+  // dan respons memberi tahu bahwa file masih tertinggal.
   const fileRemoved = await removeFilesQuietly([data.image_path], accessToken, 'delete_file')
   return { item: toDto(data), fileCleanupFailed: !fileRemoved }
 }

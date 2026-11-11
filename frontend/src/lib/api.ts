@@ -486,6 +486,12 @@ export interface PortfolioUploadUrlPayload {
   fileName: string
   contentType: PortfolioContentType
   size: number
+  /**
+   * `replace` untuk ganti foto item yang sudah ada (tidak dicek batas 20 item).
+   * Wajib disertai `portfolioId` item milik sendiri.
+   */
+  purpose?: 'create' | 'replace'
+  portfolioId?: string
 }
 
 export interface PortfolioUploadUrlResult {
