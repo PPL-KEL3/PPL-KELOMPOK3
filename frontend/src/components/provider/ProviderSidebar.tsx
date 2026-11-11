@@ -9,6 +9,7 @@ import { LokaLogo } from '@/components/ui/LokaLogo'
 import {
   BriefcaseIcon,
   IdCardIcon,
+  ImageIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   PackageIcon,
@@ -31,6 +32,7 @@ export const PROVIDER_NAV_ITEMS: NavItem[] = [
   { label: 'Daftar Jasa', href: '/provider/dashboard/services', icon: BriefcaseIcon, match: 'prefix' },
   { label: 'Profil Penyedia', href: '/provider/profile', icon: IdCardIcon, match: 'prefix' },
   { label: 'Paket & Harga', href: '/provider/dashboard/packages', icon: PackageIcon, match: 'prefix' },
+  { label: 'Portofolio', href: '/provider/dashboard/portfolio', icon: ImageIcon, match: 'prefix' },
 ]
 
 function isActive(pathname: string, item: NavItem): boolean {

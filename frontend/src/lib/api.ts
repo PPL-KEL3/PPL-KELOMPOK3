@@ -6,6 +6,7 @@ import type {
   ServiceArea,
 } from '@/types/provider'
 import type { PackageItem } from '@/types/package'
+import type { PortfolioContentType, PortfolioItem } from '@/types/portfolio'
 import type { ServiceItem } from '@/types/service'
 
 export class ApiError extends Error {
@@ -463,6 +464,155 @@ export const serviceAreaApi = {
   remove(areaId: string) {
     return request<ServiceAreaMutationApiResult>(
       `/providers/me/service-areas/${encodeURIComponent(areaId)}`,
+      {
+        method: 'DELETE',
+      }
+    )
+  },
+}
+
+export interface PortfolioListResult {
+  items: PortfolioItem[]
+}
+
+export interface PortfolioMineResult {
+  items: PortfolioItem[]
+  total: number
+  limit: number
+  remainingSlots: number
+}
+
+export interface PortfolioUploadUrlPayload {
+  fileName: string
+  contentType: PortfolioContentType
+  size: number
+  /**
+   * `replace` untuk ganti foto item yang sudah ada (tidak dicek batas 20 item).
+   * Wajib disertai `portfolioId` item milik sendiri.
+   */
+  purpose?: 'create' | 'replace'
+  portfolioId?: string
+}
+
+export interface PortfolioUploadUrlResult {
+  uploadUrl: string
+  imagePath: string
+}
+
+export interface PortfolioItemResult {
+  item: PortfolioItem
+  message?: string
+}
+
+export interface PortfolioDeleteApiResult {
+  deletedId: string
+  fileCleanupFailed: boolean
+  message: string
+}
+
+export interface PortfolioCreatePayload {
+  title: string
+  description: string | null
+  imagePath: string
+}
+
+export type PortfolioUpdatePayload = Partial<PortfolioCreatePayload>
+
+function uploadError(status: number, text: string): ApiError {
+  if (status === 0) {
+    return new ApiError(
+      0,
+      'UPLOAD_FAILED',
+      'Foto gagal diunggah. Periksa koneksi lalu coba lagi.'
+    )
+  }
+  if (status === 413 || /413|too large|exceeded/i.test(text)) {
+    return new ApiError(status, 'FILE_TOO_LARGE', 'Ukuran foto melebihi 5 MB.')
+  }
+  if (/mime|content.?type/i.test(text)) {
+    return new ApiError(status, 'INVALID_FILE_TYPE', 'Format foto harus JPG atau PNG.')
+  }
+  return new ApiError(status, 'UPLOAD_FAILED', 'Foto gagal diunggah. Coba lagi.')
+}
+
+/**
+ * Mengunggah file langsung ke signed upload URL Supabase (tidak lewat backend).
+ * Memakai XMLHttpRequest karena `fetch` belum bisa melaporkan progres unggah.
+ */
+function uploadToSignedUrl(
+  uploadUrl: string,
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('PUT', uploadUrl)
+    xhr.setRequestHeader('Content-Type', file.type)
+
+    xhr.upload.onprogress = (event) => {
+      if (onProgress && event.lengthComputable && event.total > 0) {
+        onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)))
+      }
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(100)
+        resolve()
+      } else {
+        reject(uploadError(xhr.status, xhr.responseText ?? ''))
+      }
+    }
+    xhr.onerror = () => reject(uploadError(0, ''))
+    xhr.onabort = () => reject(uploadError(0, ''))
+    xhr.send(file)
+  })
+}
+
+export const portfolioApi = {
+  listMine() {
+    return request<PortfolioMineResult>('/providers/me/portfolio')
+  },
+
+  listByProvider(providerId: string) {
+    return request<PortfolioListResult>(
+      `/providers/${encodeURIComponent(providerId)}/portfolio`
+    )
+  },
+
+  requestUploadUrl(input: PortfolioUploadUrlPayload) {
+    return request<PortfolioUploadUrlResult>(
+      '/providers/me/portfolio/upload-url',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }
+    )
+  },
+
+  uploadFile(uploadUrl: string, file: File, onProgress?: (percent: number) => void) {
+    return uploadToSignedUrl(uploadUrl, file, onProgress)
+  },
+
+  create(input: PortfolioCreatePayload) {
+    return request<PortfolioItemResult>('/providers/me/portfolio', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  },
+
+  update(id: string, input: PortfolioUpdatePayload) {
+    return request<PortfolioItemResult>(
+      `/providers/me/portfolio/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }
+    )
+  },
+
+  remove(id: string) {
+    return request<PortfolioDeleteApiResult>(
+      `/providers/me/portfolio/${encodeURIComponent(id)}`,
       {
         method: 'DELETE',
       }

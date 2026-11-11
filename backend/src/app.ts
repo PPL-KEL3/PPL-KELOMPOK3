@@ -8,6 +8,7 @@ import categoryRoutes from './routes/category.routes'
 import serviceRoutes from './routes/service.routes'
 import providerProfileRoutes from './routes/provider-profile.routes'
 import packageRoutes from './routes/package.routes'
+import portfolioRoutes from './routes/portfolio.routes'
 import { AppError } from './lib/errors'
 import { sendError } from './lib/http'
 
@@ -28,6 +29,7 @@ app.use('/api', categoryRoutes)
 app.use('/api', serviceRoutes)
 app.use('/api', providerProfileRoutes)
 app.use('/api', packageRoutes)
+app.use('/api', portfolioRoutes)
 
 app.use('/api', (_req: Request, res: Response) => {
   sendError(res, 404, 'NOT_FOUND', 'Endpoint tidak ditemukan.')

@@ -1,0 +1,371 @@
+/* ---------------------------------------------------------------------------
+   LOKA - Portofolio Penyedia (TPR-6)
+   Melengkapi packages.css (kelas pkg-*). Nilai mengikuti frame Pencil
+   "TPR-6 · Portofolio v3 (design system)".
+--------------------------------------------------------------------------- */
+
+.pf-visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ------------------------------- Header aksi ------------------------------ */
+
+.pf-head-actions {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.pf-slots {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #6d7771;
+  font-size: 12px;
+}
+
+.pf-notice {
+  align-items: center;
+}
+
+.pf-notice > span {
+  flex: 1 1 auto;
+}
+
+.pf-notice__close {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: inherit;
+}
+
+.pf-notice__close:hover {
+  background: rgba(110, 87, 22, 0.1);
+}
+
+/* ---------------------------------- Galeri -------------------------------- */
+
+.pf-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+
+@container pkg-section (min-width: 560px) {
+  .pf-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container pkg-section (min-width: 860px) {
+  .pf-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.pf-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #dfe4df;
+  border-radius: 22px;
+  background: #ffffff;
+}
+
+.pf-card__photo {
+  display: block;
+  width: 100%;
+  height: 170px;
+  object-fit: cover;
+  background: #e6eee5;
+}
+
+.pf-card__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px 18px;
+}
+
+.pf-card__title {
+  margin: 0;
+  color: #16382d;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.pf-card__desc {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #6d7771;
+  font-size: 13px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.pf-card__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.pf-skeleton__photo {
+  display: block;
+  height: 170px;
+  background: #e9eee8;
+  animation: pkg-pulse 1.3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-skeleton__photo {
+    animation: none;
+  }
+}
+
+/* ------------------------------- Modal & foto ------------------------------ */
+
+.pf-modal {
+  max-width: 580px;
+}
+
+.pf-form {
+  gap: 14px;
+}
+
+.pf-drop {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 30px 20px;
+  border: 1.5px solid #a8c5ad;
+  border-radius: 18px;
+  background: #f0f4ee;
+  color: #6d7771;
+  font-size: 12.5px;
+  line-height: 1.5;
+  text-align: center;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.pf-drop strong {
+  color: #16382d;
+  font-size: 13.5px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.pf-drop:hover:not(:disabled),
+.pf-drop--drag {
+  border-color: var(--auth-primary);
+  background: #e6eee5;
+}
+
+.pf-drop:focus-visible {
+  outline: 2px solid var(--auth-primary);
+  outline-offset: 2px;
+}
+
+.pf-drop__icon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #e6eee5;
+  color: var(--auth-primary);
+}
+
+.pf-drop--error,
+.pf-drop--error:hover:not(:disabled) {
+  border-color: var(--auth-danger);
+  background: var(--auth-danger-soft);
+  color: var(--auth-danger);
+}
+
+.pf-drop--error strong {
+  color: var(--auth-danger);
+}
+
+.pf-drop--error .pf-drop__icon {
+  background: transparent;
+  color: var(--auth-danger);
+}
+
+.pf-preview {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #e6eee5;
+}
+
+.pf-preview img {
+  display: block;
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
+
+.pf-preview__change {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 4px 14px rgba(17, 34, 26, 0.16);
+  color: #16382d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pf-preview__change:hover {
+  background: #ffffff;
+}
+
+.pf-preview__change:focus-visible {
+  outline: 2px solid var(--auth-primary);
+  outline-offset: 2px;
+}
+
+.pf-progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  background: rgba(22, 56, 45, 0.82);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pf-progress__track {
+  flex: 1 1 auto;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.pf-progress__bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #f2c66d;
+  transition: width 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.pf-privacy {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: #6e5716;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pf-privacy svg {
+  flex: 0 0 auto;
+  color: #b58a1b;
+}
+
+.pf-upload-failed {
+  align-items: center;
+}
+
+.pf-upload-failed > div {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 2px;
+}
+
+.pf-upload-failed .pkg-btn {
+  flex: 0 0 auto;
+}
+
+/* ------------------------------- Dialog hapus ------------------------------ */
+
+.pf-delete-target {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px;
+  border: 1px solid #f0d2cf;
+  border-radius: 16px;
+  background: var(--auth-danger-soft);
+}
+
+.pf-delete-target img {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.pf-delete-target div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.pf-delete-target strong {
+  color: #16382d;
+  font-size: 14px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.pf-delete-target span {
+  color: #6d7771;
+  font-size: 12px;
+}
+
+/* --------------------------------- Mobile --------------------------------- */
+
+@media (max-width: 720px) {
+  .pf-head-actions {
+    justify-items: start;
+    width: 100%;
+  }
+
+  .pf-head-actions .pkg-btn {
+    width: 100%;
+  }
+
+  .pf-preview img {
+    height: 180px;
+  }
+
+  .pf-upload-failed {
+    flex-wrap: wrap;
+  }
+}
