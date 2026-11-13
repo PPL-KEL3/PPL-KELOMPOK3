@@ -148,7 +148,10 @@ export function useServices(currentProviderId = DEFAULT_DEMO_PROVIDER_ID) {
 
   const providerServices = useMemo(() => {
     if (dataSource === 'api') {
-      return services
+      // `services` pada mode API berisi gabungan layanan publik (milik semua
+      // provider) dan layanan milik provider yang sedang login. Halaman
+      // manajemen provider hanya boleh menampilkan layanan milik akun aktif.
+      return services.filter((item) => item.providerId === currentProviderId)
     }
 
     return services.filter(
