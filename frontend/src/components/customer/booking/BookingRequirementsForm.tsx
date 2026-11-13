@@ -16,7 +16,7 @@ interface LocalPhoto {
   url: string
 }
 
-const ACCEPT = 'image/*'
+const ACCEPT = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp'
 
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
@@ -43,7 +43,7 @@ export function BookingRequirementsForm({ value, onChange, readOnly = false, dis
     event.target.value = ''
     if (!selected.length || locked) return
 
-    const invalid = selected.find((file) => !file.type.startsWith('image/') || file.size === 0)
+    const invalid = selected.find((file) => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size === 0)
     if (invalid) {
       setFileError('Format foto tidak didukung atau file kosong.')
       return

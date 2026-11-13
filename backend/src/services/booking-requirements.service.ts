@@ -5,6 +5,10 @@ import type { DatabaseErrorLike } from './category.service'
 import { getBooking } from './booking.service'
 
 export const BOOKING_REQUIREMENTS_BUCKET = 'booking-references'
+export const BOOKING_REQUIREMENTS_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
+// Belum ada batas bisnis khusus pada schema/konfigurasi LOKA saat TPR-79 dikerjakan.
+export const BOOKING_REQUIREMENTS_MAX_FILE_SIZE: number | null = null
+export const BOOKING_REQUIREMENTS_MAX_ATTACHMENTS: number | null = null
 
 interface RequirementRow {
   id: string
@@ -65,7 +69,8 @@ interface Store {
   deleteAttachment(id: string, token: string): Promise<{ data: AttachmentRow | null; error: DatabaseErrorLike | null }>
   createSignedUploadUrl(path: string, token: string): Promise<{ data: string | null; error: DatabaseErrorLike | null }>
   createSignedUrl(path: string, token: string): Promise<{ data: string | null; error: DatabaseErrorLike | null }>
-  findFile(path: string, token: string): Promise<{ data: boolean; error: DatabaseErrorLike | null }>
+  findFile(path: string, token: string): Promise<{ data: { size: number | null; contentType: string | null } | null; error: DatabaseErrorLike | null }>
+  downloadFile(path: string, token: string): Promise<{ data: Uint8Array | null; error: DatabaseErrorLike | null }>
   removeFiles(paths: string[], token: string): Promise<{ data: string[] | null; error: DatabaseErrorLike | null }>
 }
 
@@ -131,10 +136,16 @@ const store: Store = {
     const { data, error } = await createSupabaseClient(token).storage.from(BOOKING_REQUIREMENTS_BUCKET).info(path)
     if (error) {
       const status = String((error as { statusCode?: string; status?: number }).statusCode ?? (error as { status?: number }).status ?? '')
-      if (status === '400' || status === '404') return { data: false, error: null }
-      return { data: false, error: storageError(error) }
+      if (status === '400' || status === '404') return { data: null, error: null }
+      return { data: null, error: storageError(error) }
     }
-    return { data: Boolean(data), error: null }
+    return { data: data ? { size: typeof data.size === 'number' ? data.size : null, contentType: data.contentType ?? null } : null, error: null }
+  },
+  async downloadFile(path, token) {
+    ensureConfigured()
+    const { data, error } = await createSupabaseClient(token).storage.from(BOOKING_REQUIREMENTS_BUCKET).download(path)
+    if (error) return { data: null, error: storageError(error) }
+    return { data: data ? new Uint8Array(await data.arrayBuffer()) : null, error: null }
   },
   async removeFiles(paths, token) {
     ensureConfigured()
@@ -160,7 +171,7 @@ async function assertBookingAccess(bookingId: string, token: string, actorId: st
   if (role === 'admin') return booking
   if (booking.customerId !== actorId && booking.providerId !== actorId) throw new AppError(403, 'BOOKING_REQUIREMENTS_FORBIDDEN', 'Kamu tidak memiliki akses ke detail kebutuhan ini.')
   if (mutate && (role !== 'customer' || booking.customerId !== actorId)) throw new AppError(403, 'BOOKING_REQUIREMENTS_FORBIDDEN', 'Hanya customer pemilik booking yang dapat mengubah detail kebutuhan.')
-  if (mutate && booking.status !== 'pending_provider_confirmation') throw new AppError(409, 'BOOKING_REQUIREMENTS_LOCKED', 'Detail kebutuhan tidak dapat diubah setelah booking diproses penyedia.')
+  if (mutate && !isBookingRequirementsEditable(booking.status)) throw new AppError(409, 'BOOKING_REQUIREMENTS_LOCKED', 'Detail kebutuhan tidak dapat diubah setelah booking diproses penyedia.')
   return booking
 }
 
@@ -181,6 +192,17 @@ function normalizeNotes(value: unknown): string | null {
   return value.trim() || null
 }
 
+export function isBookingRequirementsEditable(status: string): boolean {
+  return status === 'pending_provider_confirmation'
+}
+
+export function hasValidImageSignature(contentType: string, bytes: Uint8Array): boolean {
+  if (contentType === 'image/jpeg') return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+  if (contentType === 'image/png') return bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+  if (contentType === 'image/webp') return bytes.length >= 12 && String.fromCharCode(...bytes.slice(0, 4)) === 'RIFF' && String.fromCharCode(...bytes.slice(8, 12)) === 'WEBP'
+  return false
+}
+
 function validAttachment(item: unknown): AttachmentInput {
   if (!item || typeof item !== 'object') throw new AppError(400, 'VALIDATION_ERROR', 'Metadata foto tidak valid.')
   const value = item as Record<string, unknown>
@@ -188,12 +210,27 @@ function validAttachment(item: unknown): AttachmentInput {
   const storagePath = typeof value.storagePath === 'string' ? value.storagePath.trim() : ''
   const contentType = typeof value.contentType === 'string' ? value.contentType.trim().toLowerCase() : ''
   const fileSize = value.fileSize
-  if (!fileName || fileName.length > 255 || !storagePath || !contentType.startsWith('image/') || typeof fileSize !== 'number' || !Number.isInteger(fileSize) || fileSize <= 0) throw new AppError(400, 'VALIDATION_ERROR', 'Metadata foto tidak valid.')
+  const extension = fileName.toLowerCase().split('.').pop()
+  const extensions: Record<string, string[]> = { 'image/jpeg': ['jpg', 'jpeg'], 'image/png': ['png'], 'image/webp': ['webp'] }
+  if (!fileName || fileName.length > 255 || /[\\/\0]/.test(fileName) || !storagePath || !(BOOKING_REQUIREMENTS_ALLOWED_TYPES as readonly string[]).includes(contentType) || !extensions[contentType]?.includes(extension ?? '') || typeof fileSize !== 'number' || !Number.isInteger(fileSize) || fileSize <= 0) throw new AppError(400, 'VALIDATION_ERROR', 'Metadata foto tidak valid.')
+  if (BOOKING_REQUIREMENTS_MAX_FILE_SIZE !== null && fileSize > BOOKING_REQUIREMENTS_MAX_FILE_SIZE) throw new AppError(400, 'FILE_TOO_LARGE', 'Ukuran foto melebihi batas yang diizinkan.')
   return { fileName, storagePath, contentType, fileSize }
 }
 
 function pathFor(customerId: string, bookingId: string, path: string): boolean {
   return new RegExp(`^${customerId}/booking-${bookingId}/[0-9a-f-]{36}\\.(jpg|jpeg|png|webp)$`, 'i').test(path)
+}
+
+async function assertUploadedImage(item: AttachmentInput, token: string): Promise<void> {
+  const file = await store.findFile(item.storagePath, token)
+  if (file.error) throw mapDbError('check_uploaded_file', file.error)
+  if (!file.data || file.data.size === null || file.data.size <= 0) throw new AppError(400, 'UPLOAD_NOT_FOUND', 'Foto belum terunggah atau file kosong. Silakan unggah ulang.')
+  if (file.data.size !== item.fileSize) throw new AppError(400, 'FILE_METADATA_MISMATCH', 'Ukuran foto tidak sesuai dengan file yang diunggah.')
+  if (file.data.contentType && file.data.contentType !== item.contentType) throw new AppError(400, 'INVALID_FILE_TYPE', 'Tipe konten foto tidak sesuai dengan metadata.')
+  if (BOOKING_REQUIREMENTS_MAX_FILE_SIZE !== null && file.data.size > BOOKING_REQUIREMENTS_MAX_FILE_SIZE) throw new AppError(400, 'FILE_TOO_LARGE', 'Ukuran foto melebihi batas yang diizinkan.')
+  const bytes = await store.downloadFile(item.storagePath, token)
+  if (bytes.error) throw mapDbError('read_uploaded_file', bytes.error)
+  if (!bytes.data || !hasValidImageSignature(item.contentType, bytes.data)) throw new AppError(400, 'INVALID_FILE_CONTENT', 'Isi file bukan foto yang valid atau file rusak.')
 }
 
 export async function getBookingRequirements(bookingId: string, actorId: string, role: string, token: string) {
@@ -205,9 +242,12 @@ export async function getBookingRequirements(bookingId: string, actorId: string,
 
 export async function createUploadUrl(bookingId: string, actorId: string, token: string, fileName: string, contentType: string, fileSize: number) {
   const booking = await assertBookingAccess(bookingId, token, actorId, 'customer', true)
-  if (!fileName || fileName.length > 255 || !['image/jpeg', 'image/png', 'image/webp'].includes(contentType) || !Number.isInteger(fileSize) || fileSize <= 0) throw new AppError(400, 'INVALID_FILE_TYPE', 'File referensi harus berupa gambar JPG, PNG, atau WEBP.')
-  const extension = contentType === 'image/jpeg' ? 'jpg' : contentType.split('/')[1] || 'bin'
-  const storagePath = `${booking.customerId}/booking-${bookingId}/${randomUUID()}.${extension}`
+  const extension = fileName.toLowerCase().split('.').pop()
+  const allowedExtensions: Record<string, string[]> = { 'image/jpeg': ['jpg', 'jpeg'], 'image/png': ['png'], 'image/webp': ['webp'] }
+  if (!fileName || fileName.length > 255 || /[\\/\0]/.test(fileName) || !allowedExtensions[contentType]?.includes(extension ?? '') || !Number.isInteger(fileSize) || fileSize <= 0) throw new AppError(400, 'INVALID_FILE_TYPE', 'File referensi harus berupa gambar JPG, PNG, atau WEBP.')
+  if (BOOKING_REQUIREMENTS_MAX_FILE_SIZE !== null && fileSize > BOOKING_REQUIREMENTS_MAX_FILE_SIZE) throw new AppError(400, 'FILE_TOO_LARGE', 'Ukuran foto melebihi batas yang diizinkan.')
+  const storageExtension = contentType === 'image/jpeg' ? 'jpg' : contentType.split('/')[1] || 'bin'
+  const storagePath = `${booking.customerId}/booking-${bookingId}/${randomUUID()}.${storageExtension}`
   const result = await store.createSignedUploadUrl(storagePath, token)
   if (result.error || !result.data) throw new AppError(502, 'BOOKING_REQUIREMENTS_UPLOAD_ERROR', 'Tautan unggah foto gagal dibuat.')
   return { uploadUrl: result.data, storagePath }
@@ -221,9 +261,7 @@ export async function createBookingRequirements(bookingId: string, input: Bookin
   const attachments = (input.attachments ?? []).map(validAttachment)
   for (const item of attachments) {
     if (!pathFor(actorId, bookingId, item.storagePath)) throw new AppError(400, 'INVALID_STORAGE_PATH', 'Lokasi foto tidak valid.')
-    const file = await store.findFile(item.storagePath, token)
-    if (file.error) throw mapDbError('check_uploaded_file', file.error)
-    if (!file.data) throw new AppError(400, 'UPLOAD_NOT_FOUND', 'Foto belum terunggah. Silakan unggah ulang.')
+    await assertUploadedImage(item, token)
   }
   const created = await store.insertRequirement(bookingId, normalizeNotes(input.notes), token)
   if (created.error) throw mapDbError('create_requirement', created.error)
@@ -247,11 +285,14 @@ export async function updateBookingRequirements(bookingId: string, input: Bookin
   if (current.error) throw mapDbError('find_for_update', current.error)
   if (!current.data) throw notFound()
   const additions = (input.attachments ?? []).map(validAttachment)
+  if (BOOKING_REQUIREMENTS_MAX_ATTACHMENTS !== null) {
+    const existingAttachments = await store.findAttachments(current.data.id, token)
+    if (existingAttachments.error) throw mapDbError('count_attachments', existingAttachments.error)
+    if ((existingAttachments.data?.length ?? 0) + additions.length > BOOKING_REQUIREMENTS_MAX_ATTACHMENTS) throw new AppError(400, 'ATTACHMENT_LIMIT_REACHED', 'Jumlah foto referensi melebihi batas yang diizinkan.')
+  }
   for (const item of additions) {
     if (!pathFor(actorId, bookingId, item.storagePath)) throw new AppError(400, 'INVALID_STORAGE_PATH', 'Lokasi foto tidak valid.')
-    const file = await store.findFile(item.storagePath, token)
-    if (file.error) throw mapDbError('check_uploaded_file_update', file.error)
-    if (!file.data) throw new AppError(400, 'UPLOAD_NOT_FOUND', 'Foto belum terunggah. Silakan unggah ulang.')
+    await assertUploadedImage(item, token)
   }
   const updated = input.notes === undefined ? { data: current.data, error: null } : await store.updateRequirement(current.data.id, normalizeNotes(input.notes), token)
   if (updated.error) throw mapDbError('update_requirement', updated.error)

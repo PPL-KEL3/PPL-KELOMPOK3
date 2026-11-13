@@ -46,6 +46,7 @@ create policy "booking_requirements_insert_customer"
   with check (exists (
     select 1 from public.bookings b
     where b.id = booking_id and b.customer_id = auth.uid()
+      and b.status = 'pending_provider_confirmation'
   ));
 
 drop policy if exists "booking_requirements_update_customer" on public.booking_requirements;
@@ -54,10 +55,12 @@ create policy "booking_requirements_update_customer"
   using (exists (
     select 1 from public.bookings b
     where b.id = booking_id and b.customer_id = auth.uid()
+      and b.status = 'pending_provider_confirmation'
   ))
   with check (exists (
     select 1 from public.bookings b
     where b.id = booking_id and b.customer_id = auth.uid()
+      and b.status = 'pending_provider_confirmation'
   ));
 
 drop policy if exists "booking_requirements_delete_customer" on public.booking_requirements;
@@ -66,6 +69,7 @@ create policy "booking_requirements_delete_customer"
   using (exists (
     select 1 from public.bookings b
     where b.id = booking_id and b.customer_id = auth.uid()
+      and b.status = 'pending_provider_confirmation'
   ));
 
 drop policy if exists "booking_requirement_attachments_read_participant" on public.booking_requirement_attachments;
@@ -84,6 +88,7 @@ create policy "booking_requirement_attachments_insert_customer"
     select 1 from public.booking_requirements r
     join public.bookings b on b.id = r.booking_id
     where r.id = requirement_id and b.customer_id = auth.uid()
+      and b.status = 'pending_provider_confirmation'
   ));
 
 drop policy if exists "booking_requirement_attachments_delete_customer" on public.booking_requirement_attachments;
@@ -93,6 +98,7 @@ create policy "booking_requirement_attachments_delete_customer"
     select 1 from public.booking_requirements r
     join public.bookings b on b.id = r.booking_id
     where r.id = requirement_id and b.customer_id = auth.uid()
+      and b.status = 'pending_provider_confirmation'
   ));
 
 grant select, insert, update, delete on public.booking_requirements to authenticated;
@@ -106,12 +112,15 @@ drop policy if exists "booking_references_read_participant" on storage.objects;
 create policy "booking_references_read_participant"
   on storage.objects for select to authenticated
   using (
-    bucket_id = 'booking-references' and exists (
+    bucket_id = 'booking-references' and (
+      (storage.foldername(name))[1] = auth.uid()::text
+      or exists (
       select 1
       from public.booking_requirement_attachments a
       join public.booking_requirements r on r.id = a.requirement_id
       join public.bookings b on b.id = r.booking_id
       where a.storage_path = name and (b.customer_id = auth.uid() or b.provider_id = auth.uid())
+      )
     )
   );
 
