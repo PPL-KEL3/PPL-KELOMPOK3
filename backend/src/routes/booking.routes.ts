@@ -16,11 +16,31 @@ import {
   type UpdateBookingInput,
 } from '../services/booking.service'
 import { requireProvider } from './service.routes'
+import {
+  createBookingRequirements,
+  createUploadUrl as createRequirementsUploadUrl,
+  deleteBookingRequirementAttachment,
+  deleteBookingRequirements,
+  getBookingRequirements,
+  updateBookingRequirements,
+  type BookingRequirementsInput,
+} from '../services/booking-requirements.service'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
 function body(req: Request): Record<string, unknown> { return (req.body ?? {}) as Record<string, unknown> }
+
+function parseRequirementsPayload(input: Record<string, unknown>): BookingRequirementsInput {
+  const payload: BookingRequirementsInput = {}
+  if (Object.prototype.hasOwnProperty.call(input, 'notes')) payload.notes = input.notes as string | null
+  if (Object.prototype.hasOwnProperty.call(input, 'attachments')) {
+    if (!Array.isArray(input.attachments)) throw new AppError(400, 'VALIDATION_ERROR', 'Lampiran harus berupa daftar.')
+    payload.attachments = input.attachments as BookingRequirementsInput['attachments']
+  }
+  if (!Object.keys(payload).length) throw new AppError(400, 'VALIDATION_ERROR', 'Minimal catatan atau lampiran harus diisi.')
+  return payload
+}
 
 function parseId(raw: unknown): string {
   const id = asString(raw).trim()
@@ -105,6 +125,40 @@ export function createBookingRouter(authMiddleware: RequestHandler = requireAuth
   router.get('/bookings/incoming', authMiddleware, requireProvider, asyncHandler(async (req, res) => {
     const bookings = await listProviderBookings(req.auth!.profile.id, req.auth!.accessToken)
     sendSuccess(res, { bookings })
+  }))
+
+  router.post('/bookings/:id/requirements/upload-url', authMiddleware, requireCustomer, asyncHandler(async (req, res) => {
+    const input = body(req)
+    const fileName = asString(input.fileName).trim()
+    const contentType = asString(input.contentType).trim().toLowerCase()
+    const fileSize = typeof input.size === 'number' ? input.size : 0
+    const result = await createRequirementsUploadUrl(parseId(req.params.id), req.auth!.profile.id, req.auth!.accessToken, fileName, contentType, fileSize)
+    sendSuccess(res, result)
+  }))
+
+  router.post('/bookings/:id/requirements', authMiddleware, requireCustomer, asyncHandler(async (req, res) => {
+    const result = await createBookingRequirements(parseId(req.params.id), parseRequirementsPayload(body(req)), req.auth!.profile.id, req.auth!.accessToken)
+    sendSuccess(res, { requirements: result }, 201)
+  }))
+
+  router.get('/bookings/:id/requirements', authMiddleware, asyncHandler(async (req, res) => {
+    const result = await getBookingRequirements(parseId(req.params.id), req.auth!.profile.id, req.auth!.profile.role, req.auth!.accessToken)
+    sendSuccess(res, { requirements: result })
+  }))
+
+  router.patch('/bookings/:id/requirements', authMiddleware, requireCustomer, asyncHandler(async (req, res) => {
+    const result = await updateBookingRequirements(parseId(req.params.id), parseRequirementsPayload(body(req)), req.auth!.profile.id, req.auth!.accessToken)
+    sendSuccess(res, { requirements: result })
+  }))
+
+  router.delete('/bookings/:id/requirements/attachments/:attachmentId', authMiddleware, requireCustomer, asyncHandler(async (req, res) => {
+    const result = await deleteBookingRequirementAttachment(parseId(req.params.id), parseId(req.params.attachmentId), req.auth!.profile.id, req.auth!.accessToken)
+    sendSuccess(res, result)
+  }))
+
+  router.delete('/bookings/:id/requirements', authMiddleware, requireCustomer, asyncHandler(async (req, res) => {
+    const result = await deleteBookingRequirements(parseId(req.params.id), req.auth!.profile.id, req.auth!.accessToken)
+    sendSuccess(res, result)
   }))
 
   router.get('/bookings/:id', authMiddleware, asyncHandler(async (req, res) => {
