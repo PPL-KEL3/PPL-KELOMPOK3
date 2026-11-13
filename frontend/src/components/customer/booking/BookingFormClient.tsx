@@ -70,17 +70,22 @@ export function BookingFormClient({ serviceId }: { serviceId: string }) {
       setSubmitError('Pilih tanggal dan waktu pengerjaan terlebih dahulu.')
       return
     }
-    if (requirements.notes.trim() || requirements.files.length > 0) {
-      setSubmitError('Detail kebutuhan belum dapat disimpan karena endpoint requirements TPR-78 belum tersedia. Hapus catatan dan foto atau tunggu integrasi backend.')
-      return
-    }
     setSubmitting(true)
     setSubmitError(null)
     try {
       const result = await bookingApi.create(draft)
+      if (requirements.notes.trim() || requirements.files.length > 0) {
+        const attachments: Array<{ fileName: string; storagePath: string; contentType: string; fileSize: number }> = []
+        for (const file of requirements.files) {
+          const upload = await bookingApi.requestRequirementsUploadUrl(result.booking.id, file)
+          await bookingApi.uploadRequirementFile(upload.uploadUrl, file)
+          attachments.push({ fileName: file.name, storagePath: upload.storagePath, contentType: file.type, fileSize: file.size })
+        }
+        await bookingApi.createRequirements(result.booking.id, { notes: requirements.notes, attachments })
+      }
       router.push(`/customer/booking/${result.booking.id}`)
     } catch (error) {
-      setSubmitError(error instanceof ApiError ? error.message : 'Booking gagal disimpan. Silakan coba lagi.')
+      setSubmitError(error instanceof ApiError ? error.message : 'Booking atau detail kebutuhan gagal disimpan. Silakan coba lagi.')
     } finally {
       setSubmitting(false)
     }

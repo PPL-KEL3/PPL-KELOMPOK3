@@ -9,6 +9,7 @@ import type { PackageItem } from '@/types/package'
 import type { PortfolioContentType, PortfolioItem } from '@/types/portfolio'
 import type { ServiceItem } from '@/types/service'
 import type { BookingDetailData, BookingDraft } from '@/types/booking'
+import type { BookingRequirementsValue } from '@/types/booking-requirements'
 
 export class ApiError extends Error {
   readonly status: number
@@ -320,6 +321,27 @@ export interface BookingResult {
   booking: BookingDetailData
 }
 
+export interface BookingRequirementAttachmentResult {
+  id: string
+  fileName: string
+  storagePath: string
+  contentType: string
+  fileSize: number
+  createdAt: string
+  url: string
+}
+
+export interface BookingRequirementsResult {
+  requirements: {
+    id: string
+    bookingId: string
+    notes: string | null
+    createdAt: string
+    updatedAt: string
+    attachments: BookingRequirementAttachmentResult[]
+  } | null
+}
+
 export const bookingApi = {
   create(input: Omit<BookingDraft, 'providerId'>) {
     return request<BookingResult>('/bookings', {
@@ -365,6 +387,39 @@ export const bookingApi = {
 
   cancel(id: string) {
     return request<BookingResult>(`/bookings/${encodeURIComponent(id)}/cancel`, { method: 'POST' })
+  },
+
+  getRequirements(id: string) {
+    return request<BookingRequirementsResult>(`/bookings/${encodeURIComponent(id)}/requirements`)
+  },
+
+  requestRequirementsUploadUrl(id: string, file: File) {
+    return request<{ uploadUrl: string; storagePath: string }>(`/bookings/${encodeURIComponent(id)}/requirements/upload-url`, {
+      method: 'POST',
+      body: JSON.stringify({ fileName: file.name, contentType: file.type, size: file.size }),
+    })
+  },
+
+  uploadRequirementFile(uploadUrl: string, file: File, onProgress?: (percent: number) => void) {
+    return uploadToSignedUrl(uploadUrl, file, onProgress)
+  },
+
+  createRequirements(id: string, value: { notes: string; attachments: Array<{ fileName: string; storagePath: string; contentType: string; fileSize: number }> }) {
+    return request<BookingRequirementsResult>(`/bookings/${encodeURIComponent(id)}/requirements`, {
+      method: 'POST',
+      body: JSON.stringify(value),
+    })
+  },
+
+  updateRequirements(id: string, value: Partial<Pick<BookingRequirementsValue, 'notes'>> & { attachments?: Array<{ fileName: string; storagePath: string; contentType: string; fileSize: number }> }) {
+    return request<BookingRequirementsResult>(`/bookings/${encodeURIComponent(id)}/requirements`, {
+      method: 'PATCH',
+      body: JSON.stringify(value),
+    })
+  },
+
+  deleteRequirementAttachment(id: string, attachmentId: string) {
+    return request<{ deletedId: string; fileCleanupFailed: boolean }>(`/bookings/${encodeURIComponent(id)}/requirements/attachments/${encodeURIComponent(attachmentId)}`, { method: 'DELETE' })
   },
 }
 
