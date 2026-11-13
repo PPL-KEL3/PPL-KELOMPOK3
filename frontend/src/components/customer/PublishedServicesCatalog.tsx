@@ -21,6 +21,7 @@ export function PublishedServicesCatalog() {
       className="dash-card"
       style={{ marginTop: '18px' }}
       aria-labelledby="customer-published-services-heading"
+      id="catalog"
     >
       <span className="dash-card__eyebrow">
         Direktori Layanan Terpublikasi ({publicServices.length} Jasa Aktif)
@@ -50,6 +51,12 @@ export function PublishedServicesCatalog() {
               >
                 Lihat Profil
               </Link>
+                <Link
+                  href={`/customer/booking/new?serviceId=${encodeURIComponent(service.id)}`}
+                  className="catalog-profile-link"
+                >
+                  Booking Sekarang
+                </Link>
             </div>
           </article>
         ))}
