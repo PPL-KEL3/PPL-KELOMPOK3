@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { AlertIcon, ArrowLeftIcon, CheckCircleIcon, ClockIcon, InfoIcon, PackageIcon } from '@/components/ui/AuthIcons'
-import { ApiError, packageApi, providerProfileApi, serviceApi } from '@/lib/api'
+import { ApiError, bookingApi, packageApi, providerProfileApi, serviceApi } from '@/lib/api'
 import { deriveHourlySlots, formatBookingDate, getWorkHours, todayInputValue } from '@/lib/booking-utils'
 import type { PackageItem } from '@/types/package'
 import type { ProviderProfile } from '@/types/provider'
@@ -21,6 +22,7 @@ function initials(name: string) {
 }
 
 export function BookingFormClient({ serviceId }: { serviceId: string }) {
+  const router = useRouter()
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [draft, setDraft] = useState<BookingDraft>({ serviceId, providerId: '', packageId: '', workDate: '', workTime: '' })
   const [submitting, setSubmitting] = useState(false)
@@ -66,8 +68,15 @@ export function BookingFormClient({ serviceId }: { serviceId: string }) {
       return
     }
     setSubmitting(true)
-    setSubmitError('Fitur penyimpanan booking belum tersedia karena endpoint TPR-74 belum ada.')
-    setSubmitting(false)
+    setSubmitError(null)
+    try {
+      const result = await bookingApi.create(draft)
+      router.push(`/customer/booking/${result.booking.id}`)
+    } catch (error) {
+      setSubmitError(error instanceof ApiError ? error.message : 'Booking gagal disimpan. Silakan coba lagi.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (state.status === 'loading') return <BookingState title="Memuat informasi jasa..." text="Mohon tunggu sebentar." loading />

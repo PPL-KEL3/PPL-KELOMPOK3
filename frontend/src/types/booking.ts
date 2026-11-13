@@ -20,10 +20,18 @@ export interface BookingSummaryData extends BookingDraft {
 export interface BookingDetailData {
   id: string
   status: string
-  createdAt?: string
-  workDate?: string
-  workTime?: string
-  service?: ServiceItem
-  provider?: ProviderProfile
+  customerId: string
+  providerId: string
+  serviceId: string
+  packageId: string | null
+  serviceName: string
+  providerName: string
   customerName?: string
+  packageName: string | null
+  workDate: string
+  workTime: string
+  price: number
+  cancellationReason: string | null
+  createdAt: string
+  updatedAt: string
 }
