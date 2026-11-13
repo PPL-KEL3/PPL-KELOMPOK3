@@ -1,6 +1,7 @@
 import { createSupabaseClient, supabaseConfigured } from '../config/supabase'
 import { AppError } from '../lib/errors'
 import type { DatabaseErrorLike } from './category.service'
+import { assertPendingBookingStatus, validateBookingSchedule, type ProviderOperatingHours } from './booking-validation.service'
 
 export const BOOKING_STATUSES = {
   PENDING_PROVIDER_CONFIRMATION: 'pending_provider_confirmation',
@@ -68,11 +69,12 @@ interface PackageContext { id: string; service_id: string; name: string; price: 
 export interface BookingStore {
   findService(id: string, accessToken: string): Promise<{ data: ServiceContext | null; error: DatabaseErrorLike | null }>
   findPackage(id: string, serviceId: string, accessToken: string): Promise<{ data: PackageContext | null; error: DatabaseErrorLike | null }>
+  findProviderOperatingHours(providerId: string, accessToken: string): Promise<{ data: ProviderOperatingHours | null; error: DatabaseErrorLike | null }>
   insert(input: Record<string, unknown>, accessToken: string): Promise<{ data: BookingRow | null; error: DatabaseErrorLike | null }>
   findByCustomer(customerId: string, accessToken: string): Promise<{ data: BookingRow[] | null; error: DatabaseErrorLike | null }>
   findByProvider(providerId: string, accessToken: string): Promise<{ data: BookingRow[] | null; error: DatabaseErrorLike | null }>
   findById(id: string, accessToken: string): Promise<{ data: BookingRow | null; error: DatabaseErrorLike | null }>
-  update(id: string, input: Record<string, unknown>, accessToken: string): Promise<{ data: BookingRow | null; error: DatabaseErrorLike | null }>
+  update(id: string, input: Record<string, unknown>, accessToken: string, expectedStatus?: BookingStatus): Promise<{ data: BookingRow | null; error: DatabaseErrorLike | null }>
 }
 
 const BOOKING_COLUMNS = `id, customer_id, provider_id, service_id, package_id, work_date, work_time, price, status, cancellation_reason, created_at, updated_at, services(name), service_packages(name), customer:profiles!bookings_customer_id_fkey(full_name, email), provider:profiles!bookings_provider_id_fkey(full_name)`
@@ -91,6 +93,11 @@ const supabaseBookingStore: BookingStore = {
     ensureConfigured()
     const { data, error } = await createSupabaseClient(accessToken).from('service_packages').select('id, service_id, name, price, is_active, deleted_at').eq('id', id).eq('service_id', serviceId).maybeSingle()
     return { data: data as PackageContext | null, error }
+  },
+  async findProviderOperatingHours(providerId, accessToken) {
+    ensureConfigured()
+    const { data, error } = await createSupabaseClient(accessToken).from('provider_profiles').select('operating_hours').eq('profile_id', providerId).maybeSingle()
+    return { data: (data?.operating_hours as ProviderOperatingHours | null) ?? null, error }
   },
   async insert(input, accessToken) {
     ensureConfigured()
@@ -112,9 +119,11 @@ const supabaseBookingStore: BookingStore = {
     const { data, error } = await createSupabaseClient(accessToken).from('bookings').select(BOOKING_COLUMNS).eq('id', id).maybeSingle()
     return { data: data as BookingRow | null, error }
   },
-  async update(id, input, accessToken) {
+  async update(id, input, accessToken, expectedStatus) {
     ensureConfigured()
-    const { data, error } = await createSupabaseClient(accessToken).from('bookings').update(input).eq('id', id).select(BOOKING_COLUMNS).maybeSingle()
+    let query = createSupabaseClient(accessToken).from('bookings').update(input).eq('id', id)
+    if (expectedStatus) query = query.eq('status', expectedStatus)
+    const { data, error } = await query.select(BOOKING_COLUMNS).maybeSingle()
     return { data: data as BookingRow | null, error }
   },
 }
@@ -125,7 +134,13 @@ export function setBookingStoreForTesting(store: BookingStore | null) { activeBo
 function mapDbError(action: string, error: DatabaseErrorLike): AppError {
   const code = error.code ?? ''
   if (code === '23503') return new AppError(400, 'INVALID_BOOKING_REFERENCE', 'Jasa atau paket booking tidak ditemukan.')
-  if (code === '23505') return new AppError(409, 'BOOKING_DUPLICATE', 'Permintaan booking yang sama sudah diproses.')
+  if (code === '23505') {
+    const text = `${error.message ?? ''} ${error.details ?? ''}`
+    if (text.includes('bookings_customer_idempotency_uidx')) {
+      return new AppError(409, 'BOOKING_DUPLICATE', 'Permintaan booking yang sama sudah diproses.')
+    }
+    return new AppError(409, 'BOOKING_SLOT_UNAVAILABLE', 'Jadwal yang kamu pilih sudah tidak tersedia. Silakan pilih waktu lain.')
+  }
   if (code === '23514') return new AppError(400, 'VALIDATION_ERROR', 'Data booking tidak valid.')
   if (code === '22P02') return new AppError(400, 'INVALID_BOOKING_ID', 'Format ID booking tidak valid.')
   if (code === '42501') return new AppError(403, 'BOOKING_OWNERSHIP_FORBIDDEN', 'Kamu tidak memiliki akses ke booking ini.')
@@ -166,6 +181,10 @@ export async function createBooking(input: CreateBookingInput, customerId: strin
   if (serviceResult.error) throw mapDbError('find_service', serviceResult.error)
   const service = serviceResult.data
   if (!service || !service.is_active) throw new AppError(404, 'SERVICE_NOT_FOUND', 'Jasa tidak ditemukan atau sudah tidak aktif.')
+  const scheduleResult = await activeBookingStore.findProviderOperatingHours(service.provider_id, accessToken)
+  if (scheduleResult.error) throw mapDbError('find_provider_schedule', scheduleResult.error)
+  if (!scheduleResult.data) throw new AppError(409, 'PROVIDER_SCHEDULE_UNAVAILABLE', 'Jadwal operasional penyedia belum tersedia.')
+  validateBookingSchedule(input.workDate, input.workTime, scheduleResult.data)
 
   let price = Number(service.price)
   if (input.packageId) {
@@ -200,6 +219,10 @@ export async function updateCustomerBooking(id: string, input: UpdateBookingInpu
   const existing = await loadBooking(id, accessToken)
   if (existing.customer_id !== customerId) throw new AppError(403, 'BOOKING_OWNERSHIP_FORBIDDEN', 'Kamu tidak memiliki akses ke booking ini.')
   if (existing.status !== BOOKING_STATUSES.PENDING_PROVIDER_CONFIRMATION) throw new AppError(409, 'BOOKING_LOCKED', 'Booking tidak dapat diubah setelah diproses penyedia.')
+  const scheduleResult = await activeBookingStore.findProviderOperatingHours(existing.provider_id, accessToken)
+  if (scheduleResult.error) throw mapDbError('find_provider_schedule_update', scheduleResult.error)
+  if (!scheduleResult.data) throw new AppError(409, 'PROVIDER_SCHEDULE_UNAVAILABLE', 'Jadwal operasional penyedia belum tersedia.')
+  validateBookingSchedule(input.workDate ?? existing.work_date, input.workTime ?? existing.work_time, scheduleResult.data)
   const payload: Record<string, unknown> = {}
   if (input.workDate !== undefined) payload.work_date = input.workDate
   if (input.workTime !== undefined) payload.work_time = input.workTime.trim()
@@ -220,7 +243,7 @@ export async function updateCustomerBooking(id: string, input: UpdateBookingInpu
     }
   }
   if (!Object.keys(payload).length) throw new AppError(400, 'VALIDATION_ERROR', 'Minimal satu data booking harus diubah.')
-  const result = await activeBookingStore.update(id, payload, accessToken)
+  const result = await activeBookingStore.update(id, payload, accessToken, BOOKING_STATUSES.PENDING_PROVIDER_CONFIRMATION)
   if (result.error) throw mapDbError('update', result.error)
   if (!result.data) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking tidak ditemukan.')
   return mapRow(result.data)
@@ -230,8 +253,8 @@ async function transition(id: string, accessToken: string, actorId: string, targ
   const existing = await loadBooking(id, accessToken)
   if (actor === 'customer' && existing.customer_id !== actorId) throw new AppError(403, 'BOOKING_OWNERSHIP_FORBIDDEN', 'Kamu tidak memiliki akses ke booking ini.')
   if (actor === 'provider' && existing.provider_id !== actorId) throw new AppError(403, 'BOOKING_OWNERSHIP_FORBIDDEN', 'Booking ini bukan milik layananmu.')
-  if (existing.status !== BOOKING_STATUSES.PENDING_PROVIDER_CONFIRMATION) throw new AppError(409, 'INVALID_BOOKING_STATUS', 'Status booking saat ini tidak memungkinkan aksi tersebut.')
-  const result = await activeBookingStore.update(id, { status: target, ...(reason ? { cancellation_reason: reason } : {}) }, accessToken)
+  assertPendingBookingStatus(existing.status)
+  const result = await activeBookingStore.update(id, { status: target, ...(reason ? { cancellation_reason: reason } : {}) }, accessToken, BOOKING_STATUSES.PENDING_PROVIDER_CONFIRMATION)
   if (result.error) throw mapDbError('transition', result.error)
   if (!result.data) throw new AppError(409, 'BOOKING_UPDATE_CONFLICT', 'Booking berubah bersamaan. Muat ulang dan coba lagi.')
   return mapRow(result.data)
