@@ -8,6 +8,7 @@ import type {
 import type { PackageItem } from '@/types/package'
 import type { PortfolioContentType, PortfolioItem } from '@/types/portfolio'
 import type { ServiceItem } from '@/types/service'
+import type { BookingDetailData, BookingDraft } from '@/types/booking'
 
 export class ApiError extends Error {
   readonly status: number
@@ -308,6 +309,62 @@ export const serviceApi = {
         method: 'DELETE',
       }
     )
+  },
+}
+
+export interface BookingListResult {
+  bookings: BookingDetailData[]
+}
+
+export interface BookingResult {
+  booking: BookingDetailData
+}
+
+export const bookingApi = {
+  create(input: Omit<BookingDraft, 'providerId'>) {
+    return request<BookingResult>('/bookings', {
+      method: 'POST',
+      body: JSON.stringify({
+        serviceId: input.serviceId,
+        packageId: input.packageId || null,
+        workDate: input.workDate,
+        workTime: input.workTime,
+      }),
+    })
+  },
+
+  listMine() {
+    return request<BookingListResult>('/bookings/mine')
+  },
+
+  listIncoming() {
+    return request<BookingListResult>('/bookings/incoming')
+  },
+
+  getById(id: string) {
+    return request<BookingResult>(`/bookings/${encodeURIComponent(id)}`)
+  },
+
+  update(id: string, input: Partial<Pick<BookingDraft, 'packageId' | 'workDate' | 'workTime'>>) {
+    return request<BookingResult>(`/bookings/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
+  },
+
+  accept(id: string) {
+    return request<BookingResult>(`/bookings/${encodeURIComponent(id)}/accept`, { method: 'POST' })
+  },
+
+  reject(id: string, reason?: string) {
+    return request<BookingResult>(`/bookings/${encodeURIComponent(id)}/reject`, {
+      method: 'POST',
+      body: JSON.stringify(reason ? { reason } : {}),
+    })
+  },
+
+  cancel(id: string) {
+    return request<BookingResult>(`/bookings/${encodeURIComponent(id)}/cancel`, { method: 'POST' })
   },
 }
 

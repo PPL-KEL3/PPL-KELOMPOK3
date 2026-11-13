@@ -248,6 +248,12 @@ export function PublicProviderProfileClient({
                       <WhatsAppIcon size={16} />
                       <span>Tanya Layanan</span>
                     </a>
+                    <Link
+                      className="pub-service-card__link pub-service-card__link--booking"
+                      href={`/customer/booking/new?serviceId=${encodeURIComponent(service.id)}`}
+                    >
+                      <span>Booking Sekarang</span>
+                    </Link>
                   </div>
                 </article>
               ))}

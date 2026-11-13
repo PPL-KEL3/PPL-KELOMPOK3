@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { PublishedServicesCatalog } from '@/components/customer/PublishedServicesCatalog'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 
 export const metadata: Metadata = {
@@ -28,12 +27,10 @@ export default function CustomerDashboardPage() {
           <h2>Jelajahi jasa terpublikasi</h2>
           <p>
             Seluruh layanan aktif yang dipublikasikan oleh penyedia jasa
-            terverifikasi ditampilkan pada katalog di bawah ini.
+            terverifikasi dapat kamu cari melalui menu Cari Jasa.
           </p>
         </article>
       </section>
-
-      <PublishedServicesCatalog />
     </DashboardShell>
   )
 }
