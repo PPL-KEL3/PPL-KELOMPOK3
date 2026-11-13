@@ -1,6 +1,7 @@
 import type { PackageItem } from '@/types/package'
 import type { ProviderProfile } from '@/types/provider'
 import type { ServiceItem } from '@/types/service'
+import type { BookingRequirementPhoto } from '@/types/booking-requirements'
 
 export interface BookingDraft {
   serviceId: string
@@ -34,4 +35,6 @@ export interface BookingDetailData {
   cancellationReason: string | null
   createdAt: string
   updatedAt: string
+  requirementNotes?: string | null
+  requirementPhotos?: BookingRequirementPhoto[]
 }

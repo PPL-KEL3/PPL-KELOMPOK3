@@ -10,6 +10,8 @@ import type { PackageItem } from '@/types/package'
 import type { ProviderProfile } from '@/types/provider'
 import type { ServiceItem } from '@/types/service'
 import type { BookingDraft } from '@/types/booking'
+import type { BookingRequirementsValue } from '@/types/booking-requirements'
+import { BookingRequirementsForm } from './BookingRequirementsForm'
 import { formatRupiah } from '@/data/mock-services'
 
 type LoadState =
@@ -28,6 +30,7 @@ export function BookingFormClient({ serviceId }: { serviceId: string }) {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [dateError, setDateError] = useState<string | null>(null)
+  const [requirements, setRequirements] = useState<BookingRequirementsValue>({ notes: '', files: [] })
 
   useEffect(() => {
     let cancelled = false
@@ -65,6 +68,10 @@ export function BookingFormClient({ serviceId }: { serviceId: string }) {
     if (state.status !== 'ready' || submitting) return
     if (!draft.workDate || !draft.workTime) {
       setSubmitError('Pilih tanggal dan waktu pengerjaan terlebih dahulu.')
+      return
+    }
+    if (requirements.notes.trim() || requirements.files.length > 0) {
+      setSubmitError('Detail kebutuhan belum dapat disimpan karena endpoint requirements TPR-78 belum tersedia. Hapus catatan dan foto atau tunggu integrasi backend.')
       return
     }
     setSubmitting(true)
@@ -114,6 +121,7 @@ export function BookingFormClient({ serviceId }: { serviceId: string }) {
             </section>
 
             {packages.length > 0 && <section className="booking-card" aria-labelledby="booking-package-title"><div className="booking-card__heading"><span className="booking-icon"><PackageIcon size={19} /></span><div><span className="booking-eyebrow">Pilihan tambahan</span><h2 id="booking-package-title">Pilih Paket</h2></div></div><div className="booking-packages">{packages.map((item) => <button type="button" key={item.id} className={`booking-package${draft.packageId === item.id ? ' is-selected' : ''}`} onClick={() => setDraft((current) => ({ ...current, packageId: item.id }))}><span><strong>{item.name}</strong><small>{item.description || 'Paket layanan dari penyedia jasa.'}</small></span><b>{formatRupiah(item.price)}</b></button>)}</div></section>}
+            <BookingRequirementsForm value={requirements} onChange={setRequirements} />
           </div>
 
           <aside className="booking-summary" aria-labelledby="booking-summary-title"><div className="booking-summary__top"><span className="booking-eyebrow">Periksa kembali</span><h2 id="booking-summary-title">Ringkasan Pemesanan</h2></div><dl><div><dt>Jasa</dt><dd>{service.name}</dd></div><div><dt>Penyedia</dt><dd>{provider.businessName}</dd></div><div><dt>Tanggal</dt><dd>{formatBookingDate(draft.workDate)}</dd></div><div><dt>Waktu</dt><dd>{draft.workTime || 'Belum dipilih'}</dd></div><div><dt>Harga</dt><dd>{formatRupiah(selectedPrice)}</dd></div></dl>{submitError && <p className="booking-error" role="alert"><AlertIcon size={15} />{submitError}</p>}<button type="button" className="booking-submit" disabled={!canSubmit} onClick={() => void submit()}>{submitting ? 'Memproses...' : 'Konfirmasi Booking'}</button><p className="booking-summary__note"><InfoIcon size={14} />Konfirmasi belum dikirim ke penyedia sampai proses penyimpanan berhasil.</p></aside>
