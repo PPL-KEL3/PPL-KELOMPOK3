@@ -77,7 +77,7 @@ export interface BookingStore {
   update(id: string, input: Record<string, unknown>, accessToken: string, expectedStatus?: BookingStatus): Promise<{ data: BookingRow | null; error: DatabaseErrorLike | null }>
 }
 
-const BOOKING_COLUMNS = `id, customer_id, provider_id, service_id, package_id, work_date, work_time, price, status, cancellation_reason, created_at, updated_at, services(name), service_packages(name), customer:profiles!bookings_customer_id_fkey(full_name, email), provider:profiles!bookings_provider_id_fkey(full_name)`
+const BOOKING_COLUMNS = `id, customer_id, provider_id, service_id, package_id, work_date, work_time, price, status, cancellation_reason, created_at, updated_at, services!bookings_service_fkey(name), service_packages(name), customer:profiles!bookings_customer_id_fkey(full_name, email), provider:profiles!bookings_provider_id_fkey(full_name)`
 
 function ensureConfigured() {
   if (!supabaseConfigured) throw new AppError(503, 'BOOKING_SERVICE_UNAVAILABLE', 'Layanan booking belum dikonfigurasi. Hubungi administrator LOKA.')
