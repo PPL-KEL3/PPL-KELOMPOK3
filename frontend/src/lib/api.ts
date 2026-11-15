@@ -10,6 +10,18 @@ import type { PortfolioContentType, PortfolioItem } from '@/types/portfolio'
 import type { ServiceItem } from '@/types/service'
 import type { BookingDetailData, BookingDraft } from '@/types/booking'
 import type { BookingRequirementsValue } from '@/types/booking-requirements'
+import type {
+  FavoriteItem,
+  FavoriteItemType,
+  CreateFavoritePayload,
+  UpdateFavoritePayload,
+} from '@/types/favorite'
+import type {
+  ReviewItem,
+  ProviderReviewStats,
+  CreateReviewPayload,
+  UpdateReviewPayload,
+} from '@/types/review'
 
 export class ApiError extends Error {
   readonly status: number
@@ -767,3 +779,86 @@ export const portfolioApi = {
     )
   },
 }
+
+export const favoritesApi = {
+  list(itemType?: FavoriteItemType) {
+    const query = itemType ? `?itemType=${encodeURIComponent(itemType)}` : ''
+    return request<{ favorites: FavoriteItem[]; count: number }>(`/favorites${query}`)
+  },
+
+  getById(id: string) {
+    return request<{ favorite: FavoriteItem }>(`/favorites/${encodeURIComponent(id)}`)
+  },
+
+  add(payload: CreateFavoritePayload) {
+    return request<{ favorite: FavoriteItem; message: string }>('/favorites', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+
+  update(id: string, payload: UpdateFavoritePayload) {
+    return request<{ favorite: FavoriteItem; message: string }>(
+      `/favorites/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }
+    )
+  },
+
+  remove(id: string) {
+    return request<{ deletedId: string; message: string }>(
+      `/favorites/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+      }
+    )
+  },
+}
+
+export const reviewsApi = {
+  getProviderReviews(providerId: string) {
+    return request<{ reviews: ReviewItem[]; stats: ProviderReviewStats }>(
+      `/reviews/provider/${encodeURIComponent(providerId)}`
+    )
+  },
+
+  getMyReviews() {
+    return request<{ reviews: ReviewItem[] }>('/reviews/mine')
+  },
+
+  getReviewByBooking(bookingId: string) {
+    return request<{ review: ReviewItem | null }>(
+      `/reviews/booking/${encodeURIComponent(bookingId)}`
+    )
+  },
+
+  create(payload: CreateReviewPayload) {
+    return request<{ review: ReviewItem; message: string }>('/reviews', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+
+  update(id: string, payload: UpdateReviewPayload) {
+    return request<{ review: ReviewItem; message: string }>(
+      `/reviews/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }
+    )
+  },
+
+  remove(id: string) {
+    return request<{ deletedId: string; message: string }>(
+      `/reviews/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+      }
+    )
+  },
+}
+
+

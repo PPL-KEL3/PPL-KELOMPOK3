@@ -146,6 +146,7 @@ export function PackageFormModal({
     >
       <div
         className="pkg-modal"
+        data-testid="pkg-form-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -171,6 +172,7 @@ export function PackageFormModal({
             onClick={requestClose}
             disabled={submitting}
             aria-label="Tutup dialog form paket"
+            data-testid="pkg-form-close"
           >
             <CloseIcon size={16} />
           </button>
@@ -184,7 +186,7 @@ export function PackageFormModal({
 
         <form className="pkg-form" onSubmit={handleSubmit} noValidate>
           {errors.general && (
-            <div className="pkg-alert" role="alert">
+            <div className="pkg-alert" role="alert" data-testid="pkg-form-alert">
               <AlertIcon size={16} />
               <span>{errors.general}</span>
             </div>
@@ -211,7 +213,7 @@ export function PackageFormModal({
               aria-invalid={errors.name ? true : undefined}
             />
             {errors.name && (
-              <p className="pkg-field__error">
+              <p className="pkg-field__error" data-testid="pkg-field-error">
                 <AlertIcon size={14} />
                 <span>{errors.name}</span>
               </p>
@@ -262,7 +264,7 @@ export function PackageFormModal({
                 />
               </div>
               {errors.price && (
-                <p className="pkg-field__error">
+                <p className="pkg-field__error" data-testid="pkg-field-error">
                   <AlertIcon size={14} />
                   <span>{errors.price}</span>
                 </p>
@@ -295,7 +297,7 @@ export function PackageFormModal({
               aria-invalid={errors.description ? true : undefined}
             />
             {errors.description && (
-              <p className="pkg-field__error">
+              <p className="pkg-field__error" data-testid="pkg-field-error">
                 <AlertIcon size={14} />
                 <span>{errors.description}</span>
               </p>
@@ -305,6 +307,7 @@ export function PackageFormModal({
           <label className="pkg-checkbox">
             <input
               type="checkbox"
+              data-testid="pkg-form-active"
               checked={form.isActive}
               disabled={submitting}
               onChange={(event) => patch({ isActive: event.target.checked })}
@@ -322,6 +325,7 @@ export function PackageFormModal({
             <button
               type="button"
               className="pkg-btn pkg-btn--secondary"
+              data-testid="pkg-form-cancel"
               onClick={requestClose}
               disabled={submitting}
             >
@@ -329,6 +333,7 @@ export function PackageFormModal({
             </button>
             <button
               type="submit"
+              data-testid="pkg-form-submit"
               className="pkg-btn pkg-btn--primary"
               disabled={submitting}
             >
@@ -342,6 +347,7 @@ export function PackageFormModal({
         <div className="pkg-backdrop pkg-backdrop--nested">
           <div
             className="pkg-modal pkg-modal--discard"
+            data-testid="pkg-discard-dialog"
             role="alertdialog"
             aria-modal="true"
             aria-labelledby={`${titleId}-discard`}
@@ -359,6 +365,7 @@ export function PackageFormModal({
               <button
                 type="button"
                 className="pkg-btn pkg-btn--secondary pkg-btn--sm"
+                data-testid="pkg-discard-keep"
                 onClick={() => setConfirmDiscard(false)}
               >
                 Lanjut mengedit
@@ -366,6 +373,7 @@ export function PackageFormModal({
               <button
                 type="button"
                 className="pkg-btn pkg-btn--danger pkg-btn--sm"
+                data-testid="pkg-discard-confirm"
                 onClick={() => {
                   setConfirmDiscard(false)
                   onClose()

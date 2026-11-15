@@ -13,10 +13,10 @@ export function PackageList({ packages, selectHref = '/login' }: PackageListProp
   return (
     <div className="pkgpub-grid">
       {packages.map((item) => (
-        <article key={item.id} className="pkgpub-card">
-          <h3>{item.name}</h3>
+        <article key={item.id} className="pkgpub-card" data-testid="pkgpub-card">
+          <h3 data-testid="pkgpub-card-name">{item.name}</h3>
           {item.description && <p className="pkgpub-card__desc">{item.description}</p>}
-          <p className="pkgpub-card__price">{formatRupiah(item.price)}</p>
+          <p className="pkgpub-card__price" data-testid="pkgpub-card-price">{formatRupiah(item.price)}</p>
           <Link href={selectHref} className="pkgpub-card__cta">
             Pilih paket ini
           </Link>

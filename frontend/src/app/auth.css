@@ -1668,3 +1668,180 @@ a.auth-submit.dash-action {
   border-color: var(--auth-primary);
   background: #f0f6f0;
 }
+
+/* ---------------------------------------------------------------------------
+   Global LOKA Modals & Dialogs (Customer & Shared)
+--------------------------------------------------------------------------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(18, 43, 34, 0.52);
+  backdrop-filter: blur(4px);
+  animation: modal-fade-in 150ms ease-out;
+}
+
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  padding: clamp(22px, 3vw, 28px);
+  border: 1px solid var(--auth-border);
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(17, 34, 26, 0.22);
+  animation: modal-slide-up 180ms ease-out;
+}
+
+@keyframes modal-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--auth-border);
+  margin-bottom: 16px;
+}
+
+.modal-header h2 {
+  color: var(--auth-text);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.modal-close-btn {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--auth-muted);
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.modal-close-btn:hover {
+  background: #edf2f7;
+  color: var(--auth-text);
+  border-color: #cbd5e1;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal-card input,
+.modal-card textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #cfdbd1;
+  border-radius: 9px;
+  background: #ffffff;
+  color: var(--auth-text);
+  font-size: 13.5px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  box-sizing: border-box;
+}
+
+.modal-card input:focus,
+.modal-card textarea:focus {
+  border-color: var(--auth-primary);
+  box-shadow: 0 0 0 3px rgba(36, 91, 69, 0.12);
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 18px;
+  margin-top: 20px;
+  border-top: 1px solid var(--auth-border);
+}
+
+.modal-footer .btn,
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 150ms ease;
+}
+
+.modal-footer .btn--secondary,
+.btn--secondary {
+  border: 1px solid #cfdbd1;
+  background: #ffffff;
+  color: var(--auth-text);
+}
+
+.modal-footer .btn--secondary:hover:not(:disabled),
+.btn--secondary:hover:not(:disabled) {
+  background: #f0f6f0;
+  border-color: var(--auth-primary);
+}
+
+.modal-footer .btn--primary,
+.btn--primary {
+  border: 1px solid var(--auth-primary);
+  background: var(--auth-primary);
+  color: #ffffff;
+}
+
+.modal-footer .btn--primary:hover:not(:disabled),
+.btn--primary:hover:not(:disabled) {
+  background: var(--auth-dark);
+  border-color: var(--auth-dark);
+}
+
+.modal-footer .btn--danger,
+.btn--danger {
+  border: 1px solid #dc2626;
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.modal-footer .btn--danger:hover:not(:disabled),
+.btn--danger:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+

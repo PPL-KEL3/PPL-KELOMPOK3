@@ -11,6 +11,8 @@ import packageRoutes from './routes/package.routes'
 import portfolioRoutes from './routes/portfolio.routes'
 import bookingRoutes from './routes/booking.routes'
 import paymentVerificationRoutes from './routes/payment-verification.routes'
+import favoriteRoutes from './routes/favorite.routes'
+import reviewRoutes from './routes/review.routes'
 import { AppError } from './lib/errors'
 import { sendError } from './lib/http'
 
@@ -34,6 +36,8 @@ app.use('/api', packageRoutes)
 app.use('/api', portfolioRoutes)
 app.use('/api', bookingRoutes)
 app.use('/api', paymentVerificationRoutes)
+app.use('/api', favoriteRoutes)
+app.use('/api', reviewRoutes)
 
 app.use('/api', (_req: Request, res: Response) => {
   sendError(res, 404, 'NOT_FOUND', 'Endpoint tidak ditemukan.')

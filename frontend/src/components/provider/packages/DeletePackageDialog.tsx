@@ -53,6 +53,7 @@ export function DeletePackageDialog({
     >
       <div
         className="pkg-modal pkg-modal--confirm"
+        data-testid="pkg-delete-dialog"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -86,7 +87,7 @@ export function DeletePackageDialog({
         <div id={descId} className="pkg-delete-body">
           <p>Kamu akan menghapus paket berikut dari jasa ini:</p>
 
-          <div className="pkg-delete-target">
+          <div className="pkg-delete-target" data-testid="pkg-delete-target">
             <strong>{item.name}</strong>
             <span>
               {serviceName} &bull; {formatRupiah(item.price)}
@@ -100,7 +101,7 @@ export function DeletePackageDialog({
           </p>
 
           {errorMessage && (
-            <div className="pkg-alert" role="alert">
+            <div className="pkg-alert" role="alert" data-testid="pkg-delete-error">
               <AlertIcon size={16} />
               <span>{errorMessage}</span>
             </div>
@@ -111,6 +112,7 @@ export function DeletePackageDialog({
           <button
             type="button"
             className="pkg-btn pkg-btn--secondary"
+            data-testid="pkg-delete-cancel"
             onClick={onCancel}
             disabled={submitting}
           >
@@ -119,6 +121,7 @@ export function DeletePackageDialog({
           <button
             type="button"
             className="pkg-btn pkg-btn--danger"
+            data-testid="pkg-delete-confirm"
             onClick={() => onConfirm(item)}
             disabled={submitting}
           >

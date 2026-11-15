@@ -2,11 +2,14 @@
 
 import Link from 'next/link'
 import { PublicHeader } from '@/components/ui/PublicHeader'
-import { ClockIcon } from '@/components/ui/AuthIcons'
+import { ClockIcon, HeartIcon } from '@/components/ui/AuthIcons'
 import { formatOperatingHours } from '@/lib/operating-hours'
 import { buildWhatsAppUrl, formatWhatsAppDisplay } from '@/lib/whatsapp'
 import { formatRupiah } from '@/data/mock-services'
 import { usePublicProvider } from '@/hooks/usePublicProvider'
+import { useFavorites } from '@/hooks/useFavorites'
+import { useReviews } from '@/hooks/useReviews'
+import { ReviewsList } from '@/components/customer/reviews/ReviewsList'
 import { MapPinIcon, StoreIcon, WhatsAppIcon } from '@/components/provider/profile/ProfileIcons'
 
 function initials(name: string): string {
@@ -27,6 +30,20 @@ export function PublicProviderProfileClient({
 }: PublicProviderProfileClientProps) {
   const { provider, services, loading, notFound, error, reload } =
     usePublicProvider(providerId)
+  const { isFavorite, getFavoriteByTarget, addFavorite, removeFavorite } =
+    useFavorites('provider')
+  const { reviews, stats } = useReviews(providerId)
+
+  const favorited = isFavorite('provider', providerId)
+
+  async function handleToggleFavorite() {
+    const existing = getFavoriteByTarget('provider', providerId)
+    if (existing) {
+      await removeFavorite(existing.id)
+    } else {
+      await addFavorite({ itemType: 'provider', providerId })
+    }
+  }
 
   if (loading) {
     return (
@@ -106,10 +123,30 @@ export function PublicProviderProfileClient({
             <div>
               <span className="pub-hero__eyebrow">Profil Penyedia Jasa Lokal</span>
               <h1 id="provider-profile-heading">{displayName}</h1>
-              <span className="pub-hero__category">
-                <StoreIcon size={15} />
-                {provider.primaryCategory.name}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span className="pub-hero__category">
+                  <StoreIcon size={15} />
+                  {provider.primaryCategory.name}
+                </span>
+                {stats && stats.totalReviews > 0 && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      backgroundColor: '#fef3c7',
+                      color: '#92400e',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      border: '1px solid #fde68a',
+                    }}
+                  >
+                    ★ {stats.averageRating.toFixed(1)} ({stats.totalReviews} ulasan)
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -132,19 +169,44 @@ export function PublicProviderProfileClient({
             </div>
           </div>
 
-          <a
-            className="pub-whatsapp-cta"
-            href={buildWhatsAppUrl(
-              provider.whatsappNumber,
-              `Halo ${displayName}, saya melihat profil usaha Anda di LOKA.`
-            )}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <WhatsAppIcon size={20} />
-            <span>Hubungi via WhatsApp</span>
-            <small>{formatWhatsAppDisplay(provider.whatsappNumber)}</small>
-          </a>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <a
+              className="pub-whatsapp-cta"
+              href={buildWhatsAppUrl(
+                provider.whatsappNumber,
+                `Halo ${displayName}, saya melihat profil usaha Anda di LOKA.`
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ flex: 1, minWidth: '220px' }}
+            >
+              <WhatsAppIcon size={20} />
+              <span>Hubungi via WhatsApp</span>
+              <small>{formatWhatsAppDisplay(provider.whatsappNumber)}</small>
+            </a>
+
+            <button
+              type="button"
+              onClick={() => void handleToggleFavorite()}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 18px',
+                borderRadius: '8px',
+                border: favorited ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                backgroundColor: favorited ? '#fef2f2' : '#ffffff',
+                color: favorited ? '#ef4444' : '#475569',
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: '0.9rem',
+              }}
+              title={favorited ? 'Hapus penyedia dari favorit' : 'Simpan penyedia ke favorit'}
+            >
+              <HeartIcon size={20} filled={favorited} />
+              <span>{favorited ? 'Tersimpan di Favorit' : 'Tambah ke Favorit'}</span>
+            </button>
+          </div>
         </section>
 
         <section className="pub-hours-card" aria-labelledby="provider-hours-heading">
@@ -259,6 +321,18 @@ export function PublicProviderProfileClient({
               ))}
             </div>
           )}
+        </section>
+
+        <section className="pub-hours-card" aria-labelledby="provider-reviews-heading" style={{ marginTop: '24px' }}>
+          <div className="pub-section-head">
+            <div>
+              <span className="pub-eyebrow">Ulasan & Kepuasan Pelanggan</span>
+              <h2 id="provider-reviews-heading">Penilaian dan Ulasan</h2>
+            </div>
+          </div>
+          <div style={{ marginTop: '16px' }}>
+            <ReviewsList reviews={reviews} stats={stats} />
+          </div>
         </section>
       </main>
 

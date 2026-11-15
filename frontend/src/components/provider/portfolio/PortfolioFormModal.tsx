@@ -237,6 +237,7 @@ export function PortfolioFormModal({
     >
       <div
         className="pkg-modal pf-modal"
+        data-testid="pf-form-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -263,6 +264,7 @@ export function PortfolioFormModal({
             onClick={requestClose}
             disabled={busy}
             aria-label="Tutup dialog form portofolio"
+            data-testid="pf-form-close"
           >
             <CloseIcon size={16} />
           </button>
@@ -280,6 +282,7 @@ export function PortfolioFormModal({
           <input
             ref={fileInputRef}
             type="file"
+            data-testid="pf-file-input"
             accept={ACCEPT}
             className="pf-visually-hidden"
             tabIndex={-1}
@@ -288,7 +291,7 @@ export function PortfolioFormModal({
           />
 
           {shownPhoto ? (
-            <div className="pf-preview">
+            <div className="pf-preview" data-testid="pf-preview">
               <img src={shownPhoto} alt={file ? `Pratinjau ${file.name}` : (item?.title ?? '')} />
               {!busy && (
                 <button
@@ -302,7 +305,7 @@ export function PortfolioFormModal({
                 </button>
               )}
               {phase === 'uploading' && (
-                <div className="pf-progress" role="status" aria-live="polite">
+                <div className="pf-progress" role="status" aria-live="polite" data-testid="pf-progress">
                   <span>{progress >= 100 ? 'Foto terunggah 100%' : `Mengunggah… ${progress}%`}</span>
                   <span className="pf-progress__track" aria-hidden="true">
                     <span className="pf-progress__bar" style={{ width: `${progress}%` }} />
@@ -324,12 +327,13 @@ export function PortfolioFormModal({
               onDrop={handleDrop}
               disabled={busy}
               aria-describedby={fileError ? `${titleId}-file-error` : undefined}
+              data-testid="pf-drop"
             >
               <span className="pf-drop__icon" aria-hidden="true">
                 {fileError ? <FileXIcon size={18} /> : <ImagePlusIcon size={18} />}
               </span>
               <strong>{fileError && rejectedName ? rejectedName : 'Pilih foto hasil kerja'}</strong>
-              <span id={`${titleId}-file-error`}>
+              <span id={`${titleId}-file-error`} data-testid="pf-drop-message">
                 {fileError ?? 'Seret foto ke sini atau klik untuk memilih. JPG atau PNG, maks. 5 MB.'}
               </span>
             </button>
@@ -352,7 +356,7 @@ export function PortfolioFormModal({
           )}
 
           {shownPhoto && fileError && (
-            <p className="pkg-field__error" role="alert">
+            <p className="pkg-field__error" role="alert" data-testid="pf-file-error">
               <AlertIcon size={14} />
               <span>{fileError}</span>
             </p>
@@ -364,7 +368,7 @@ export function PortfolioFormModal({
           </p>
 
           {errors.general && (
-            <div className="pkg-alert" role="alert">
+            <div className="pkg-alert" role="alert" data-testid="pf-form-alert">
               <AlertIcon size={16} />
               <span>{errors.general}</span>
             </div>
@@ -391,7 +395,7 @@ export function PortfolioFormModal({
               aria-invalid={errors.title ? true : undefined}
             />
             {errors.title && (
-              <p className="pkg-field__error">
+              <p className="pkg-field__error" data-testid="pf-field-error">
                 <span>{errors.title}</span>
               </p>
             )}
@@ -416,7 +420,7 @@ export function PortfolioFormModal({
               aria-invalid={errors.description ? true : undefined}
             />
             {errors.description && (
-              <p className="pkg-field__error">
+              <p className="pkg-field__error" data-testid="pf-field-error">
                 <span>{errors.description}</span>
               </p>
             )}
@@ -426,12 +430,13 @@ export function PortfolioFormModal({
             <button
               type="button"
               className="pkg-btn pkg-btn--secondary"
+              data-testid="pf-form-cancel"
               onClick={requestClose}
               disabled={busy}
             >
               Batal
             </button>
-            <button type="submit" className="pkg-btn pkg-btn--primary" disabled={!canSubmit}>
+            <button type="submit" className="pkg-btn pkg-btn--primary" data-testid="pf-form-submit" disabled={!canSubmit}>
               {busy ? (
                 <span className="auth-spinner" aria-hidden="true" />
               ) : (
@@ -447,6 +452,7 @@ export function PortfolioFormModal({
         <div className="pkg-backdrop pkg-backdrop--nested">
           <div
             className="pkg-modal pkg-modal--discard"
+            data-testid="pf-discard-dialog"
             role="alertdialog"
             aria-modal="true"
             aria-labelledby={`${titleId}-discard`}
@@ -464,6 +470,7 @@ export function PortfolioFormModal({
               <button
                 type="button"
                 className="pkg-btn pkg-btn--secondary pkg-btn--sm"
+                data-testid="pf-discard-keep"
                 onClick={() => setConfirmDiscard(false)}
               >
                 Lanjut mengedit
@@ -471,6 +478,7 @@ export function PortfolioFormModal({
               <button
                 type="button"
                 className="pkg-btn pkg-btn--danger pkg-btn--sm"
+                data-testid="pf-discard-confirm"
                 onClick={() => {
                   setConfirmDiscard(false)
                   onClose()
