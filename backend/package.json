@@ -20,7 +20,9 @@
     "test:tpr48": "tsc && node --test dist/tests/portfolio.test.js",
     "test:tpr111": "tsc && node --test dist/tests/payment-verification-validation.test.js",
     "test:tpr135": "tsc && node --test dist/tests/favorite-test-cases.test.js",
-    "test:tpr96": "tsc && node --test dist/tests/favorite.test.js"
+    "test:tpr96": "tsc && node --test dist/tests/favorite.test.js",
+    "test:tpr136": "tsc && node --test dist/tests/review-test-cases.test.js",
+    "test:tpr100": "tsc && node --test dist/tests/review.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.47.0",

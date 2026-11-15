@@ -25,6 +25,8 @@ export function DeleteFavoriteDialog({
 
   useEffect(() => {
     if (!open) return
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape' && !submitting) {
@@ -34,7 +36,10 @@ export function DeleteFavoriteDialog({
     }
 
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.style.overflow = prevOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
   }, [open, submitting, onCancel])
 
   if (!open || !item) return null

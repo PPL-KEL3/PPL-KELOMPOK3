@@ -8,6 +8,8 @@ import { buildWhatsAppUrl, formatWhatsAppDisplay } from '@/lib/whatsapp'
 import { formatRupiah } from '@/data/mock-services'
 import { usePublicProvider } from '@/hooks/usePublicProvider'
 import { useFavorites } from '@/hooks/useFavorites'
+import { useReviews } from '@/hooks/useReviews'
+import { ReviewsList } from '@/components/customer/reviews/ReviewsList'
 import { MapPinIcon, StoreIcon, WhatsAppIcon } from '@/components/provider/profile/ProfileIcons'
 
 function initials(name: string): string {
@@ -30,6 +32,7 @@ export function PublicProviderProfileClient({
     usePublicProvider(providerId)
   const { isFavorite, getFavoriteByTarget, addFavorite, removeFavorite } =
     useFavorites('provider')
+  const { reviews, stats } = useReviews(providerId)
 
   const favorited = isFavorite('provider', providerId)
 
@@ -120,10 +123,30 @@ export function PublicProviderProfileClient({
             <div>
               <span className="pub-hero__eyebrow">Profil Penyedia Jasa Lokal</span>
               <h1 id="provider-profile-heading">{displayName}</h1>
-              <span className="pub-hero__category">
-                <StoreIcon size={15} />
-                {provider.primaryCategory.name}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span className="pub-hero__category">
+                  <StoreIcon size={15} />
+                  {provider.primaryCategory.name}
+                </span>
+                {stats && stats.totalReviews > 0 && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      backgroundColor: '#fef3c7',
+                      color: '#92400e',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      border: '1px solid #fde68a',
+                    }}
+                  >
+                    ★ {stats.averageRating.toFixed(1)} ({stats.totalReviews} ulasan)
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -298,6 +321,18 @@ export function PublicProviderProfileClient({
               ))}
             </div>
           )}
+        </section>
+
+        <section className="pub-hours-card" aria-labelledby="provider-reviews-heading" style={{ marginTop: '24px' }}>
+          <div className="pub-section-head">
+            <div>
+              <span className="pub-eyebrow">Ulasan & Kepuasan Pelanggan</span>
+              <h2 id="provider-reviews-heading">Penilaian dan Ulasan</h2>
+            </div>
+          </div>
+          <div style={{ marginTop: '16px' }}>
+            <ReviewsList reviews={reviews} stats={stats} />
+          </div>
         </section>
       </main>
 

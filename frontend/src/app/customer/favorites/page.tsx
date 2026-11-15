@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { FavoritesClient } from '@/components/customer/favorites/FavoritesClient'
 
 export const metadata: Metadata = {
@@ -8,8 +9,13 @@ export const metadata: Metadata = {
 
 export default function CustomerFavoritesPage() {
   return (
-    <main style={{ padding: '24px 32px', maxWidth: '1280px', margin: '0 auto' }}>
+    <DashboardShell
+      eyebrow="Daftar Favorit"
+      title="Layanan & Penyedia Jasa Favorit"
+      description="Simpan jasa langganan dan profil penyedia terbaik agar mudah ditemukan kembali saat Anda membutuhkannya."
+    >
       <FavoritesClient />
-    </main>
+    </DashboardShell>
   )
 }
+
