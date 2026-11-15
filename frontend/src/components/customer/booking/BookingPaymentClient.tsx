@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { AlertIcon, ArrowLeftIcon, InfoIcon, ShieldIcon } from '@/components/ui/AuthIcons'
-import { ApiError, bookingApi } from '@/lib/api'
+import { ApiError, bookingApi, type PaymentData } from '@/lib/api'
 import { formatBookingDate } from '@/lib/booking-utils'
 import { formatRupiah } from '@/data/mock-services'
 import type { BookingDetailData } from '@/types/booking'
@@ -12,11 +12,19 @@ export function BookingPaymentClient({ bookingId }: { bookingId: string }) {
   const [booking, setBooking] = useState<BookingDetailData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [payment, setPayment] = useState<PaymentData | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    bookingApi.getById(bookingId).then((result) => {
-      if (!cancelled) setBooking(result.booking)
+    bookingApi.getById(bookingId).then(async (result) => {
+      if (cancelled) return
+      setBooking(result.booking)
+      try {
+        const paymentResult = await bookingApi.createPayment(bookingId)
+        if (!cancelled) setPayment(paymentResult.payment)
+      } catch (reason: unknown) {
+        if (!cancelled) setError(reason instanceof ApiError ? reason.message : 'Data pembayaran gagal dimuat.')
+      }
     }).catch((reason: unknown) => {
       if (!cancelled) setError(reason instanceof ApiError ? reason.message : 'Detail pembayaran gagal dimuat.')
     }).finally(() => {
@@ -40,12 +48,12 @@ export function BookingPaymentClient({ bookingId }: { bookingId: string }) {
 
         <div className="payment-layout">
           <section className="payment-qr-card" aria-labelledby="payment-session-title">
-            <div className="payment-status-row"><span className="booking-status payment-status--unavailable">Sesi Belum Tersedia</span></div>
+            <div className="payment-status-row"><span className={`booking-status ${payment?.status === 'paid' ? 'payment-status--paid' : 'payment-status--unpaid'}`}>{payment?.status === 'paid' ? 'Pembayaran Terbayar' : 'Belum Dibayar'}</span></div>
             <div className="payment-qr-empty" role="status">
               <span className="payment-qr-placeholder" aria-hidden="true"><ShieldIcon size={34} /></span>
-              <h2 id="payment-session-title">QRIS belum tersedia</h2>
-              <p>Sesi pembayaran QRIS belum diterbitkan untuk booking ini. Tidak ada kode QR yang dapat digunakan saat ini.</p>
-              <div className="payment-integration-note"><InfoIcon size={16} /><span>Integrasi payment gateway dan penerbitan sesi QRIS akan tersedia melalui TPR-106.</span></div>
+              <h2 id="payment-session-title">Pembayaran QRIS lokal</h2>
+              <p>{payment?.status === 'paid' ? 'Pembayaran untuk booking ini sudah ditandai terbayar oleh administrator.' : 'Pembayaran QRIS belum ditandai terbayar. Halaman ini hanya mencatat status pembayaran lokal dan belum terhubung ke gateway.'}</p>
+              <div className="payment-integration-note"><InfoIcon size={16} /><span>Tidak ada kode QR yang dapat dipindai. Status pembayaran hanya dapat diperbarui dari backend oleh administrator.</span></div>
             </div>
           </section>
 

@@ -16,6 +16,8 @@ import {
   type UpdateBookingInput,
 } from '../services/booking.service'
 import { requireProvider } from './service.routes'
+import { requireAdmin } from './category.routes'
+import { getOrCreatePayment, getPayment, markPaymentPaid } from '../services/payment.service'
 import {
   createBookingRequirements,
   createUploadUrl as createRequirementsUploadUrl,
@@ -168,6 +170,21 @@ export function createBookingRouter(authMiddleware: RequestHandler = requireAuth
       throw new AppError(403, 'BOOKING_OWNERSHIP_FORBIDDEN', 'Kamu tidak memiliki akses ke booking ini.')
     }
     sendSuccess(res, { booking })
+  }))
+
+  router.post('/bookings/:id/payment', authMiddleware, requireCustomer, asyncHandler(async (req, res) => {
+    const payment = await getOrCreatePayment(parseId(req.params.id), req.auth!.profile.id, req.auth!.accessToken)
+    sendSuccess(res, { payment }, 201)
+  }))
+
+  router.get('/bookings/:id/payment', authMiddleware, requireCustomer, asyncHandler(async (req, res) => {
+    const payment = await getPayment(parseId(req.params.id), req.auth!.profile.id, req.auth!.accessToken)
+    sendSuccess(res, { payment })
+  }))
+
+  router.patch('/payments/:id/mark-paid', authMiddleware, requireAdmin, asyncHandler(async (req, res) => {
+    const payment = await markPaymentPaid(parseId(req.params.id), req.auth!.accessToken)
+    sendSuccess(res, { payment })
   }))
 
   router.patch('/bookings/:id', authMiddleware, requireCustomer, asyncHandler(async (req, res) => {

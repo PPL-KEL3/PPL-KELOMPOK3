@@ -4,7 +4,8 @@
 .payment-qr-card, .payment-summary-card { border: 1px solid var(--gray-light); border-radius: var(--radius-md); background: var(--white); box-shadow: var(--shadow-sm); }
 .payment-qr-card { min-height: 500px; padding: 28px; }
 .payment-status-row { display: flex; justify-content: flex-end; }
-.payment-status--unavailable { background: var(--sage-50); color: var(--gray); }
+.payment-status--unpaid { background: #fff4d6; color: #8a5a00; }
+.payment-status--paid { background: #dff4e7; color: var(--forest-800); }
 .payment-qr-empty { display: grid; justify-items: center; gap: 12px; max-width: 440px; margin: 75px auto 30px; text-align: center; }
 .payment-qr-placeholder { display: grid; width: 92px; height: 92px; place-items: center; border: 1px dashed var(--gray-light); border-radius: 20px; background: var(--sage-50); color: var(--forest-700); }
 .payment-qr-empty h2, .payment-summary-card h2 { color: var(--forest-950); font-size: 21px; }

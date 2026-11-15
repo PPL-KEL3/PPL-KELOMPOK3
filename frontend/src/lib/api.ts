@@ -342,6 +342,18 @@ export interface BookingRequirementsResult {
   } | null
 }
 
+export interface PaymentData {
+  id: string
+  bookingId: string
+  customerId: string
+  amount: number
+  paymentMethod: 'qris'
+  status: 'unpaid' | 'paid'
+  paidAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export const bookingApi = {
   create(input: Omit<BookingDraft, 'providerId'>) {
     return request<BookingResult>('/bookings', {
@@ -365,6 +377,14 @@ export const bookingApi = {
 
   getById(id: string) {
     return request<BookingResult>(`/bookings/${encodeURIComponent(id)}`)
+  },
+
+  createPayment(id: string) {
+    return request<{ payment: PaymentData }>(`/bookings/${encodeURIComponent(id)}/payment`, { method: 'POST' })
+  },
+
+  getPayment(id: string) {
+    return request<{ payment: PaymentData }>(`/bookings/${encodeURIComponent(id)}/payment`)
   },
 
   update(id: string, input: Partial<Pick<BookingDraft, 'packageId' | 'workDate' | 'workTime'>>) {
