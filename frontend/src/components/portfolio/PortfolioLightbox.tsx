@@ -74,6 +74,7 @@ export function PortfolioLightbox({ items, index, onIndexChange, onClose }: Port
     <div
       ref={dialogRef}
       className="pfpub-lightbox"
+      data-testid="pfpub-lightbox"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -86,7 +87,7 @@ export function PortfolioLightbox({ items, index, onIndexChange, onClose }: Port
       }}
     >
       <div className="pfpub-lightbox__top" data-backdrop="true">
-        <span className="pfpub-lightbox__counter" aria-live="polite">
+        <span className="pfpub-lightbox__counter" aria-live="polite" data-testid="pfpub-lightbox-counter">
           {index + 1} / {items.length}
         </span>
         <button

@@ -51,6 +51,7 @@ export function DeletePortfolioDialog({
     >
       <div
         className="pkg-modal pkg-modal--confirm"
+        data-testid="pf-delete-dialog"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -82,7 +83,7 @@ export function DeletePortfolioDialog({
         </div>
 
         <div id={descId} className="pkg-delete-body">
-          <div className="pf-delete-target">
+          <div className="pf-delete-target" data-testid="pf-delete-target">
             <img src={item.imageUrl} alt="" />
             <div>
               <strong>{item.title}</strong>
@@ -97,7 +98,7 @@ export function DeletePortfolioDialog({
           </p>
 
           {errorMessage && (
-            <div className="pkg-alert" role="alert">
+            <div className="pkg-alert" role="alert" data-testid="pf-delete-error">
               <AlertIcon size={16} />
               <span>{errorMessage}</span>
             </div>
@@ -108,6 +109,7 @@ export function DeletePortfolioDialog({
           <button
             type="button"
             className="pkg-btn pkg-btn--secondary"
+            data-testid="pf-delete-cancel"
             onClick={onCancel}
             disabled={submitting}
           >
@@ -116,6 +118,7 @@ export function DeletePortfolioDialog({
           <button
             type="button"
             className="pkg-btn pkg-btn--danger"
+            data-testid="pf-delete-confirm"
             onClick={() => onConfirm(item)}
             disabled={submitting}
           >
