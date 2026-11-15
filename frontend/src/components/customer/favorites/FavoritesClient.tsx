@@ -41,40 +41,36 @@ export function FavoritesClient() {
 
   return (
     <div className="favorites-container" style={{ paddingBottom: '40px' }}>
-      {/* Top Header */}
+      {/* Action Bar */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'flex-start',
+          alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '16px',
-          marginBottom: '24px',
+          gap: '12px',
+          marginTop: '20px',
+          marginBottom: '20px',
         }}
       >
-        <div>
-          <span className="dash-card__eyebrow" style={{ color: '#0284c7', fontWeight: 600 }}>
-            Daftar Favorit Pelanggan (TPR-18)
-          </span>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: '4px 0 8px 0', color: '#0f172a' }}>
-            Layanan & Penyedia Jasa Favorit
-          </h1>
-          <p style={{ color: '#64748b', fontSize: '0.925rem', margin: 0, maxWidth: '600px' }}>
-            Simpan jasa langganan dan profil penyedia terbaik agar mudah ditemukan kembali saat Anda membutuhkannya.
-          </p>
-        </div>
-
+        <span className="dash-card__eyebrow">
+          Koleksi Tersimpan ({allFavorites.length} Item)
+        </span>
         <Link
           href="/customer/services"
-          className="btn btn--primary"
           style={{
-            backgroundColor: '#0284c7',
-            color: '#fff',
-            padding: '10px 18px',
-            borderRadius: '8px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            height: '38px',
+            padding: '0 16px',
+            borderRadius: '10px',
+            background: 'var(--auth-primary, #245b45)',
+            color: '#ffffff',
+            fontSize: '12.5px',
+            fontWeight: 700,
             textDecoration: 'none',
-            fontWeight: 600,
-            fontSize: '0.9rem',
+            transition: 'background 150ms ease',
           }}
         >
           🔍 Jelajahi Jasa Lainnya
@@ -87,47 +83,50 @@ export function FavoritesClient() {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
           gap: '14px',
-          marginBottom: '24px',
+          marginBottom: '22px',
         }}
       >
         <div
           style={{
-            padding: '16px',
-            backgroundColor: '#f8fafc',
-            borderRadius: '10px',
-            border: '1px solid #e2e8f0',
+            padding: '16px 20px',
+            backgroundColor: '#ffffff',
+            borderRadius: '14px',
+            border: '1px solid var(--auth-border, #e2e7e1)',
+            boxShadow: '0 4px 14px rgba(24, 63, 50, 0.04)',
           }}
         >
-          <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500 }}>Total Tersimpan</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', marginTop: '4px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--auth-muted, #78847c)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Tersimpan</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--auth-text, #25352c)', marginTop: '4px' }}>
             {allFavorites.length}
           </div>
         </div>
 
         <div
           style={{
-            padding: '16px',
-            backgroundColor: '#eff6ff',
-            borderRadius: '10px',
-            border: '1px solid #bfdbfe',
+            padding: '16px 20px',
+            backgroundColor: 'var(--auth-success-soft, #eaf3ec)',
+            borderRadius: '14px',
+            border: '1px solid #cfdbd1',
+            boxShadow: '0 4px 14px rgba(24, 63, 50, 0.04)',
           }}
         >
-          <div style={{ fontSize: '0.8rem', color: '#1d4ed8', fontWeight: 500 }}>Layanan Jasa</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1d4ed8', marginTop: '4px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--auth-primary, #245b45)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Layanan Jasa</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--auth-primary, #245b45)', marginTop: '4px' }}>
             {serviceCount}
           </div>
         </div>
 
         <div
           style={{
-            padding: '16px',
-            backgroundColor: '#f0fdf4',
-            borderRadius: '10px',
-            border: '1px solid #bbf7d0',
+            padding: '16px 20px',
+            backgroundColor: '#ffffff',
+            borderRadius: '14px',
+            border: '1px solid var(--auth-border, #e2e7e1)',
+            boxShadow: '0 4px 14px rgba(24, 63, 50, 0.04)',
           }}
         >
-          <div style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: 500 }}>Penyedia Jasa</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#15803d', marginTop: '4px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--auth-dark, #183f32)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Penyedia Jasa</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--auth-dark, #183f32)', marginTop: '4px' }}>
             {providerCount}
           </div>
         </div>
@@ -143,8 +142,9 @@ export function FavoritesClient() {
           gap: '12px',
           backgroundColor: '#ffffff',
           padding: '14px 18px',
-          borderRadius: '10px',
-          border: '1px solid #e2e8f0',
+          borderRadius: '14px',
+          border: '1px solid var(--auth-border, #e2e7e1)',
+          boxShadow: '0 4px 14px rgba(24, 63, 50, 0.04)',
           marginBottom: '20px',
         }}
       >
@@ -154,14 +154,15 @@ export function FavoritesClient() {
             type="button"
             onClick={() => setFilterType('all')}
             style={{
-              padding: '6px 14px',
-              borderRadius: '6px',
-              border: filterType === 'all' ? '1px solid #0284c7' : '1px solid #cbd5e1',
-              backgroundColor: filterType === 'all' ? '#0284c7' : '#ffffff',
-              color: filterType === 'all' ? '#ffffff' : '#334155',
-              fontSize: '0.85rem',
-              fontWeight: 600,
+              padding: '7px 16px',
+              borderRadius: '9px',
+              border: filterType === 'all' ? '1px solid var(--auth-primary, #245b45)' : '1px solid #cfdbd1',
+              backgroundColor: filterType === 'all' ? 'var(--auth-primary, #245b45)' : '#ffffff',
+              color: filterType === 'all' ? '#ffffff' : 'var(--auth-text, #25352c)',
+              fontSize: '12.5px',
+              fontWeight: 700,
               cursor: 'pointer',
+              transition: 'all 150ms ease',
             }}
           >
             Semua ({allFavorites.length})
@@ -170,14 +171,15 @@ export function FavoritesClient() {
             type="button"
             onClick={() => setFilterType('service')}
             style={{
-              padding: '6px 14px',
-              borderRadius: '6px',
-              border: filterType === 'service' ? '1px solid #0284c7' : '1px solid #cbd5e1',
-              backgroundColor: filterType === 'service' ? '#0284c7' : '#ffffff',
-              color: filterType === 'service' ? '#ffffff' : '#334155',
-              fontSize: '0.85rem',
-              fontWeight: 600,
+              padding: '7px 16px',
+              borderRadius: '9px',
+              border: filterType === 'service' ? '1px solid var(--auth-primary, #245b45)' : '1px solid #cfdbd1',
+              backgroundColor: filterType === 'service' ? 'var(--auth-primary, #245b45)' : '#ffffff',
+              color: filterType === 'service' ? '#ffffff' : 'var(--auth-text, #25352c)',
+              fontSize: '12.5px',
+              fontWeight: 700,
               cursor: 'pointer',
+              transition: 'all 150ms ease',
             }}
           >
             Jasa ({serviceCount})
@@ -186,14 +188,15 @@ export function FavoritesClient() {
             type="button"
             onClick={() => setFilterType('provider')}
             style={{
-              padding: '6px 14px',
-              borderRadius: '6px',
-              border: filterType === 'provider' ? '1px solid #0284c7' : '1px solid #cbd5e1',
-              backgroundColor: filterType === 'provider' ? '#0284c7' : '#ffffff',
-              color: filterType === 'provider' ? '#ffffff' : '#334155',
-              fontSize: '0.85rem',
-              fontWeight: 600,
+              padding: '7px 16px',
+              borderRadius: '9px',
+              border: filterType === 'provider' ? '1px solid var(--auth-primary, #245b45)' : '1px solid #cfdbd1',
+              backgroundColor: filterType === 'provider' ? 'var(--auth-primary, #245b45)' : '#ffffff',
+              color: filterType === 'provider' ? '#ffffff' : 'var(--auth-text, #25352c)',
+              fontSize: '12.5px',
+              fontWeight: 700,
               cursor: 'pointer',
+              transition: 'all 150ms ease',
             }}
           >
             Penyedia ({providerCount})
@@ -209,10 +212,13 @@ export function FavoritesClient() {
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
               width: '100%',
-              padding: '8px 14px',
-              borderRadius: '6px',
-              border: '1px solid #cbd5e1',
-              fontSize: '0.875rem',
+              padding: '9px 14px',
+              borderRadius: '9px',
+              border: '1px solid #cfdbd1',
+              fontSize: '13px',
+              color: 'var(--auth-text, #25352c)',
+              outline: 'none',
+              backgroundColor: '#ffffff',
             }}
           />
         </div>
@@ -282,14 +288,19 @@ export function FavoritesClient() {
           </p>
           <Link
             href="/customer/services"
-            className="btn btn--primary"
             style={{
-              backgroundColor: '#0284c7',
-              color: '#fff',
-              padding: '10px 20px',
-              borderRadius: '8px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '42px',
+              padding: '0 24px',
+              backgroundColor: 'var(--auth-primary, #245b45)',
+              color: '#ffffff',
+              borderRadius: '10px',
               textDecoration: 'none',
-              fontWeight: 600,
+              fontWeight: 700,
+              fontSize: '13px',
+              transition: 'background 150ms ease',
             }}
           >
             Mulai Cari Layanan Jasa
