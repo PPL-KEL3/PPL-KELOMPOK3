@@ -145,12 +145,12 @@ interface StatePanelProps {
 
 function StatePanel({ tag, icon, title, text, action }: StatePanelProps) {
   return (
-    <div className="pkgpub-state" role="status">
+    <div className="pkgpub-state" role="status" data-testid="pfpub-state">
       <span className="pkgpub-state__tag">{tag}</span>
       <span className="pkgpub-state__icon" aria-hidden="true">
         {icon}
       </span>
-      <h2>{title}</h2>
+      <h2 data-testid="pfpub-state-title">{title}</h2>
       <p>{text}</p>
       {action}
     </div>

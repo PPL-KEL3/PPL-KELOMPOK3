@@ -227,7 +227,7 @@ export function PackageManagementClient() {
             title="Belum ada paket untuk jasa ini."
             text='Tambahkan paket pertama, misalnya "Dasar" atau "Lengkap", supaya pelanggan tahu pilihan dan harganya.'
             action={
-              <button type="button" className="pkg-btn pkg-btn--primary" onClick={openCreate}>
+              <button type="button" className="pkg-btn pkg-btn--primary" data-testid="pkg-empty-add" onClick={openCreate}>
                 <PlusIcon size={16} />
                 <span>Tambah Paket</span>
               </button>
@@ -241,7 +241,7 @@ export function PackageManagementClient() {
       <>
         {selectedService && !selectedService.isActive && <InactiveServiceBanner />}
         {limitReached && (
-          <div className="pkg-notice" role="status">
+          <div className="pkg-notice" role="status" data-testid="pkg-limit-notice">
             <AlertIcon size={16} />
             <span>
               Maksimal {MAX_PACKAGES_PER_SERVICE} paket per jasa. Hapus paket
@@ -251,7 +251,7 @@ export function PackageManagementClient() {
         )}
 
         {visiblePackages.length === 0 ? (
-          <p className="pkg-filter-empty" role="status">
+          <p className="pkg-filter-empty" role="status" data-testid="pkg-filter-empty">
             Tidak ada paket berstatus {filter === 'active' ? 'Aktif' : 'Nonaktif'}.
           </p>
         ) : (
@@ -301,6 +301,7 @@ export function PackageManagementClient() {
             <button
               type="button"
               className="pkg-btn pkg-btn--primary"
+              data-testid="pkg-add"
               onClick={openCreate}
               disabled={!canAdd}
             >
@@ -332,7 +333,7 @@ export function PackageManagementClient() {
 
               {listReady && (
                 <div className="pkg-picker__side">
-                  <span className="pkg-slots">
+                  <span className="pkg-slots" data-testid="pkg-slots">
                     {Math.max(MAX_PACKAGES_PER_SERVICE - packages.length, 0)} slot
                     paket tersisa
                   </span>
@@ -342,11 +343,12 @@ export function PackageManagementClient() {
                         key={item.value}
                         type="button"
                         className={`pkg-chip${filter === item.value ? ' pkg-chip--on' : ''}`}
+                        data-testid={`pkg-filter-${item.value}`}
                         aria-pressed={filter === item.value}
                         onClick={() => setFilter(item.value)}
                       >
                         <span>{item.label}</span>
-                        <span className="pkg-chip__count">{counts[item.value]}</span>
+                        <span className="pkg-chip__count" data-testid="pkg-filter-count">{counts[item.value]}</span>
                       </button>
                     ))}
                   </div>
@@ -387,7 +389,7 @@ export function PackageManagementClient() {
 
 function InactiveServiceBanner() {
   return (
-    <div className="pkg-notice pkg-notice--warning" role="status">
+    <div className="pkg-notice pkg-notice--warning" role="status" data-testid="pkg-inactive-service">
       <AlertIcon size={16} />
       <span>Jasa ini nonaktif, paket tidak tampil ke pelanggan.</span>
     </div>
@@ -405,12 +407,12 @@ interface StatePanelProps {
 
 function StatePanel({ icon, badge, title, text, action, tone = 'default' }: StatePanelProps) {
   return (
-    <div className="pkg-state" role={tone === 'error' ? 'alert' : 'status'}>
+    <div className="pkg-state" role={tone === 'error' ? 'alert' : 'status'} data-testid="pkg-state">
       <span className="pkg-state__badge">{badge}</span>
       <span className={`pkg-state__icon${tone === 'error' ? ' pkg-state__icon--error' : ''}`}>
         {icon}
       </span>
-      <h3>{title}</h3>
+      <h3 data-testid="pkg-state-title">{title}</h3>
       <p>{text}</p>
       {action}
     </div>
