@@ -3,7 +3,7 @@ import { RoleGate } from '@/components/auth/RoleGate'
 
 export default function ProviderDashboardLayout({ children }: { children: ReactNode }) {
   return (
-    <RoleGate role="provider" requireVerifiedProvider>
+    <RoleGate role="provider">
       {children}
     </RoleGate>
   )

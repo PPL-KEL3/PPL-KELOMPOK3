@@ -1,0 +1,314 @@
+/* ---------------------------------------------------------------------------
+   LOKA - /preview paket publik (TPR-5, AC2)
+   Nilai mengikuti frame Pencil "TPR-5 · Paket & Harga v5 (rapih)" layar #7 dan #11.
+--------------------------------------------------------------------------- */
+
+.pkgpub-page {
+  min-height: 100dvh;
+  background: #f8f8f3;
+  color: #252b28;
+}
+
+.pkgpub-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: min(calc(100% - 32px), 1120px);
+  min-height: 84px;
+  margin-inline: auto;
+}
+
+.pkgpub-nav__links {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pkgpub-nav__login {
+  color: #245c48;
+  font-weight: 700;
+}
+
+.pkgpub-nav__register {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 0 20px;
+  border-radius: 999px;
+  background: #245c48;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.pkgpub-demo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #fdf5db;
+  color: #6e5716;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.pkgpub-demo svg {
+  flex: 0 0 auto;
+}
+
+.pkgpub-body {
+  display: grid;
+  gap: 28px;
+  width: min(calc(100% - 32px), 1120px);
+  margin-inline: auto;
+  padding: 40px 0 72px;
+}
+
+.pkgpub-hero {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+  padding: clamp(28px, 4vw, 48px) clamp(22px, 4vw, 56px);
+  border-radius: 32px;
+  background: #1d493a;
+  color: #ffffff;
+}
+
+.pkgpub-hero__tag {
+  padding: 5px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.pkgpub-hero h1 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.pkgpub-hero p {
+  max-width: 560px;
+  margin: 0;
+  color: #c9d9ca;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.pkgpub-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pkgpub-eyebrow {
+  color: #245c48;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.pkgpub-section-head h2 {
+  margin: 6px 0 0;
+  color: #16382d;
+  font-size: clamp(22px, 2.6vw, 26px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.pkgpub-sort {
+  color: #6d7771;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pkgpub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 20px;
+}
+
+.pkgpub-card {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 26px;
+  border: 1px solid #e2e7e1;
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow:
+    0 1px 3px rgba(24, 63, 50, 0.06),
+    0 12px 34px rgba(24, 63, 50, 0.055);
+  transition: border-color 160ms ease;
+}
+
+.pkgpub-card:hover {
+  border-color: #245c48;
+}
+
+.pkgpub-card h3 {
+  margin: 0;
+  color: #16382d;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.pkgpub-card__desc {
+  margin: 0;
+  color: #6d7771;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.pkgpub-card__price {
+  margin: 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #dfe4df;
+  color: #245c48;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.6px;
+}
+
+.pkgpub-card__cta,
+.pkgpub-btn {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 22px;
+  border: 1px solid #245c48;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #245c48;
+  font-size: 14px;
+  font-weight: 700;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.pkgpub-card__cta:hover,
+.pkgpub-btn:hover {
+  background: #245c48;
+  color: #ffffff;
+}
+
+.pkgpub-card__cta:focus-visible,
+.pkgpub-btn:focus-visible {
+  outline: 2px solid #245c48;
+  outline-offset: 2px;
+}
+
+.pkgpub-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: #eaf3ec;
+  color: #2f6b4f;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.pkgpub-note svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.pkgpub-state {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 40px 32px;
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 12px 34px rgba(24, 63, 50, 0.055);
+  text-align: center;
+}
+
+.pkgpub-state__tag {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #e6eee5;
+  color: #245c48;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.pkgpub-state__icon {
+  display: inline-flex;
+  width: 56px;
+  height: 56px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: #e6eee5;
+  color: #245c48;
+}
+
+.pkgpub-state h2 {
+  margin: 0;
+  color: #16382d;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.pkgpub-state p {
+  max-width: 420px;
+  margin: 0;
+  color: #6d7771;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.pkgpub-skeleton span {
+  display: block;
+  height: 16px;
+  border-radius: 8px;
+  background: #e9eee8;
+  animation: pkgpub-pulse 1.3s ease-in-out infinite;
+}
+
+.pkgpub-skeleton span:first-child {
+  width: 40%;
+  height: 20px;
+}
+
+.pkgpub-skeleton span:last-child {
+  width: 60%;
+  height: 28px;
+}
+
+@keyframes pkgpub-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pkgpub-skeleton span {
+    animation: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .pkgpub-nav__links a:first-child {
+    display: none;
+  }
+}

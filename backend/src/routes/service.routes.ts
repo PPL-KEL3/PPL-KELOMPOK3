@@ -56,40 +56,6 @@ export const requireProvider: RequestHandler = (req, _res, next) => {
   return next()
 }
 
-export const requireVerifiedProvider: RequestHandler = (req, _res, next) => {
-  if (!req.auth) {
-    return next(
-      new AppError(
-        401,
-        'NO_SESSION',
-        'Sesi tidak ditemukan. Silakan masuk terlebih dahulu.'
-      )
-    )
-  }
-
-  if (req.auth.profile.role !== 'provider') {
-    return next(
-      new AppError(
-        403,
-        'FORBIDDEN',
-        'Kamu tidak memiliki izin untuk mengakses fitur penyedia jasa.'
-      )
-    )
-  }
-
-  if (req.auth.profile.providerVerificationStatus !== 'verified') {
-    return next(
-      new AppError(
-        403,
-        'PROVIDER_NOT_VERIFIED',
-        'Akun penyedia jasa kamu belum terverifikasi. Selesaikan verifikasi terlebih dahulu untuk mengelola layanan.'
-      )
-    )
-  }
-
-  return next()
-}
-
 function parseServiceId(rawId: unknown): string {
   const id = asString(rawId).trim()
   if (!id || !UUID_PATTERN.test(id)) {
@@ -338,7 +304,7 @@ export function createServiceRouter(
   router.post(
     '/services',
     authMiddleware,
-    requireVerifiedProvider,
+    requireProvider,
     asyncHandler(async (req, res) => {
       const auth = req.auth!
       const payload = parseCreateServicePayload(requestBody(req))
@@ -381,20 +347,20 @@ export function createServiceRouter(
   router.patch(
     '/services/:id',
     authMiddleware,
-    requireVerifiedProvider,
+    requireProvider,
     handleUpdateService()
   )
   router.put(
     '/services/:id',
     authMiddleware,
-    requireVerifiedProvider,
+    requireProvider,
     handleUpdateService()
   )
 
   router.delete(
     '/services/:id',
     authMiddleware,
-    requireVerifiedProvider,
+    requireProvider,
     asyncHandler(async (req, res) => {
       const auth = req.auth!
       const id = parseServiceId(req.params.id)

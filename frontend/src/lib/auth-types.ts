@@ -30,7 +30,5 @@ export function dashboardPathFor(user: AuthUser): string {
   if (user.role === 'customer') return '/customer/dashboard'
   if (user.role === 'admin') return '/admin/dashboard'
 
-  return user.providerVerificationStatus === 'verified'
-    ? '/provider/dashboard'
-    : '/provider/verification'
+  return '/provider/dashboard'
 }

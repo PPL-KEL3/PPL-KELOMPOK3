@@ -13,8 +13,8 @@ export default function AdminDashboardPage() {
       title="Ruang operasional LOKA."
       description="Kelola kategori direktori jasa, verifikasi penyedia jasa, dan pantau operasional platform LOKA."
     >
-      <section className="dash-grid">
-        <article className="dash-card">
+        <section className="dash-grid">
+          <article className="dash-card">
           <span className="dash-card__eyebrow">Direktori Layanan</span>
           <h2>Manajemen Kategori Jasa</h2>
           <p>
@@ -28,6 +28,24 @@ export default function AdminDashboardPage() {
               style={{ display: 'inline-flex', textDecoration: 'none' }}
             >
               Buka Manajemen Kategori
+            </Link>
+          </div>
+          </article>
+
+        <article className="dash-card">
+          <span className="dash-card__eyebrow">Pembayaran</span>
+          <h2>Antrean Verifikasi Pembayaran</h2>
+          <p>
+            Pantau kasus pembayaran yang membutuhkan pemeriksaan setelah
+            endpoint verifikasi tersedia.
+          </p>
+          <div style={{ marginTop: '16px' }}>
+            <Link
+              href="/admin/payments/verification"
+              className="dash-logout"
+              style={{ display: 'inline-flex', textDecoration: 'none' }}
+            >
+              Buka Antrean Verifikasi
             </Link>
           </div>
         </article>

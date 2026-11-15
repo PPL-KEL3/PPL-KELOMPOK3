@@ -177,6 +177,15 @@ export function mapServiceListingDatabaseError(
 ): AppError {
   const code = error.code ?? ''
 
+  // TPR-5: jasa yang masih punya paket ditolak FK `service_packages.service_id` (on delete restrict).
+  if (code === '23503' && action === 'delete') {
+    return new AppError(
+      409,
+      'SERVICE_HAS_PACKAGES',
+      'Jasa ini masih punya paket, nonaktifkan saja.'
+    )
+  }
+
   if (code === '23503') {
     return new AppError(
       400,

@@ -2,11 +2,12 @@
 
 import Link from 'next/link'
 import { PublicHeader } from '@/components/ui/PublicHeader'
-import { ClockIcon } from '@/components/ui/AuthIcons'
+import { ClockIcon, HeartIcon } from '@/components/ui/AuthIcons'
 import { formatOperatingHours } from '@/lib/operating-hours'
 import { buildWhatsAppUrl, formatWhatsAppDisplay } from '@/lib/whatsapp'
 import { formatRupiah } from '@/data/mock-services'
 import { usePublicProvider } from '@/hooks/usePublicProvider'
+import { useFavorites } from '@/hooks/useFavorites'
 import { MapPinIcon, StoreIcon, WhatsAppIcon } from '@/components/provider/profile/ProfileIcons'
 
 function initials(name: string): string {
@@ -27,6 +28,19 @@ export function PublicProviderProfileClient({
 }: PublicProviderProfileClientProps) {
   const { provider, services, loading, notFound, error, reload } =
     usePublicProvider(providerId)
+  const { isFavorite, getFavoriteByTarget, addFavorite, removeFavorite } =
+    useFavorites('provider')
+
+  const favorited = isFavorite('provider', providerId)
+
+  async function handleToggleFavorite() {
+    const existing = getFavoriteByTarget('provider', providerId)
+    if (existing) {
+      await removeFavorite(existing.id)
+    } else {
+      await addFavorite({ itemType: 'provider', providerId })
+    }
+  }
 
   if (loading) {
     return (
@@ -132,19 +146,44 @@ export function PublicProviderProfileClient({
             </div>
           </div>
 
-          <a
-            className="pub-whatsapp-cta"
-            href={buildWhatsAppUrl(
-              provider.whatsappNumber,
-              `Halo ${displayName}, saya melihat profil usaha Anda di LOKA.`
-            )}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <WhatsAppIcon size={20} />
-            <span>Hubungi via WhatsApp</span>
-            <small>{formatWhatsAppDisplay(provider.whatsappNumber)}</small>
-          </a>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <a
+              className="pub-whatsapp-cta"
+              href={buildWhatsAppUrl(
+                provider.whatsappNumber,
+                `Halo ${displayName}, saya melihat profil usaha Anda di LOKA.`
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ flex: 1, minWidth: '220px' }}
+            >
+              <WhatsAppIcon size={20} />
+              <span>Hubungi via WhatsApp</span>
+              <small>{formatWhatsAppDisplay(provider.whatsappNumber)}</small>
+            </a>
+
+            <button
+              type="button"
+              onClick={() => void handleToggleFavorite()}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 18px',
+                borderRadius: '8px',
+                border: favorited ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                backgroundColor: favorited ? '#fef2f2' : '#ffffff',
+                color: favorited ? '#ef4444' : '#475569',
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: '0.9rem',
+              }}
+              title={favorited ? 'Hapus penyedia dari favorit' : 'Simpan penyedia ke favorit'}
+            >
+              <HeartIcon size={20} filled={favorited} />
+              <span>{favorited ? 'Tersimpan di Favorit' : 'Tambah ke Favorit'}</span>
+            </button>
+          </div>
         </section>
 
         <section className="pub-hours-card" aria-labelledby="provider-hours-heading">
@@ -248,6 +287,12 @@ export function PublicProviderProfileClient({
                       <WhatsAppIcon size={16} />
                       <span>Tanya Layanan</span>
                     </a>
+                    <Link
+                      className="pub-service-card__link pub-service-card__link--booking"
+                      href={`/customer/booking/new?serviceId=${encodeURIComponent(service.id)}`}
+                    >
+                      <span>Booking Sekarang</span>
+                    </Link>
                   </div>
                 </article>
               ))}

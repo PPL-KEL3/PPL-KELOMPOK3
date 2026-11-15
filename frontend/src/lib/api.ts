@@ -5,7 +5,17 @@ import type {
   ProviderProfile,
   ServiceArea,
 } from '@/types/provider'
+import type { PackageItem } from '@/types/package'
+import type { PortfolioContentType, PortfolioItem } from '@/types/portfolio'
 import type { ServiceItem } from '@/types/service'
+import type { BookingDetailData, BookingDraft } from '@/types/booking'
+import type { BookingRequirementsValue } from '@/types/booking-requirements'
+import type {
+  FavoriteItem,
+  FavoriteItemType,
+  CreateFavoritePayload,
+  UpdateFavoritePayload,
+} from '@/types/favorite'
 
 export class ApiError extends Error {
   readonly status: number
@@ -309,6 +319,215 @@ export const serviceApi = {
   },
 }
 
+export interface BookingListResult {
+  bookings: BookingDetailData[]
+}
+
+export interface BookingResult {
+  booking: BookingDetailData
+}
+
+export interface BookingRequirementAttachmentResult {
+  id: string
+  fileName: string
+  storagePath: string
+  contentType: string
+  fileSize: number
+  createdAt: string
+  url: string
+}
+
+export interface BookingRequirementsResult {
+  requirements: {
+    id: string
+    bookingId: string
+    notes: string | null
+    createdAt: string
+    updatedAt: string
+    attachments: BookingRequirementAttachmentResult[]
+  } | null
+}
+
+export interface PaymentData {
+  id: string
+  bookingId: string
+  customerId: string
+  amount: number
+  paymentMethod: 'qris'
+  status: 'unpaid' | 'paid'
+  sessionStatus: 'active' | 'expired' | 'cancelled' | 'completed'
+  expiresAt: string
+  cancelledAt: string | null
+  sessionVersion: number
+  paidAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export const bookingApi = {
+  create(input: Omit<BookingDraft, 'providerId'>) {
+    return request<BookingResult>('/bookings', {
+      method: 'POST',
+      body: JSON.stringify({
+        serviceId: input.serviceId,
+        packageId: input.packageId || null,
+        workDate: input.workDate,
+        workTime: input.workTime,
+      }),
+    })
+  },
+
+  listMine() {
+    return request<BookingListResult>('/bookings/mine')
+  },
+
+  listIncoming() {
+    return request<BookingListResult>('/bookings/incoming')
+  },
+
+  getById(id: string) {
+    return request<BookingResult>(`/bookings/${encodeURIComponent(id)}`)
+  },
+
+  createPayment(id: string) {
+    return request<{ payment: PaymentData }>(`/bookings/${encodeURIComponent(id)}/payment`, { method: 'POST' })
+  },
+
+  getPayment(id: string) {
+    return request<{ payment: PaymentData }>(`/bookings/${encodeURIComponent(id)}/payment`)
+  },
+
+  refreshPayment(id: string) {
+    return request<{ payment: PaymentData }>(`/bookings/${encodeURIComponent(id)}/payment/refresh`, { method: 'POST' })
+  },
+
+  regeneratePayment(id: string) {
+    return request<{ payment: PaymentData }>(`/bookings/${encodeURIComponent(id)}/payment/regenerate`, { method: 'POST' })
+  },
+
+  cancelPayment(id: string) {
+    return request<{ payment: PaymentData }>(`/bookings/${encodeURIComponent(id)}/payment/cancel`, { method: 'POST' })
+  },
+
+  update(id: string, input: Partial<Pick<BookingDraft, 'packageId' | 'workDate' | 'workTime'>>) {
+    return request<BookingResult>(`/bookings/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
+  },
+
+  accept(id: string) {
+    return request<BookingResult>(`/bookings/${encodeURIComponent(id)}/accept`, { method: 'POST' })
+  },
+
+  reject(id: string, reason?: string) {
+    return request<BookingResult>(`/bookings/${encodeURIComponent(id)}/reject`, {
+      method: 'POST',
+      body: JSON.stringify(reason ? { reason } : {}),
+    })
+  },
+
+  cancel(id: string) {
+    return request<BookingResult>(`/bookings/${encodeURIComponent(id)}/cancel`, { method: 'POST' })
+  },
+
+  getRequirements(id: string) {
+    return request<BookingRequirementsResult>(`/bookings/${encodeURIComponent(id)}/requirements`)
+  },
+
+  requestRequirementsUploadUrl(id: string, file: File) {
+    return request<{ uploadUrl: string; storagePath: string }>(`/bookings/${encodeURIComponent(id)}/requirements/upload-url`, {
+      method: 'POST',
+      body: JSON.stringify({ fileName: file.name, contentType: file.type, size: file.size }),
+    })
+  },
+
+  uploadRequirementFile(uploadUrl: string, file: File, onProgress?: (percent: number) => void) {
+    return uploadToSignedUrl(uploadUrl, file, onProgress)
+  },
+
+  createRequirements(id: string, value: { notes: string; attachments: Array<{ fileName: string; storagePath: string; contentType: string; fileSize: number }> }) {
+    return request<BookingRequirementsResult>(`/bookings/${encodeURIComponent(id)}/requirements`, {
+      method: 'POST',
+      body: JSON.stringify(value),
+    })
+  },
+
+  updateRequirements(id: string, value: Partial<Pick<BookingRequirementsValue, 'notes'>> & { attachments?: Array<{ fileName: string; storagePath: string; contentType: string; fileSize: number }> }) {
+    return request<BookingRequirementsResult>(`/bookings/${encodeURIComponent(id)}/requirements`, {
+      method: 'PATCH',
+      body: JSON.stringify(value),
+    })
+  },
+
+  deleteRequirementAttachment(id: string, attachmentId: string) {
+    return request<{ deletedId: string; fileCleanupFailed: boolean }>(`/bookings/${encodeURIComponent(id)}/requirements/attachments/${encodeURIComponent(attachmentId)}`, { method: 'DELETE' })
+  },
+}
+
+export interface PackageListResult {
+  packages: PackageItem[]
+}
+
+export interface PackageItemResult {
+  package: PackageItem
+  message?: string
+}
+
+export interface PackageDeleteApiResult {
+  package: PackageItem
+  deletedId: string
+  message: string
+}
+
+export interface PackageMutationPayload {
+  serviceId: string
+  name: string
+  description: string | null
+  price: number
+  isActive: boolean
+}
+
+export const packageApi = {
+  listByService(serviceId: string) {
+    return request<PackageListResult>(
+      `/services/${encodeURIComponent(serviceId)}/packages`
+    )
+  },
+
+  listMine(serviceId: string) {
+    return request<PackageListResult>(
+      `/packages/mine?serviceId=${encodeURIComponent(serviceId)}`
+    )
+  },
+
+  create(input: PackageMutationPayload) {
+    return request<PackageItemResult>('/packages', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  },
+
+  update(id: string, input: Partial<Omit<PackageMutationPayload, 'serviceId'>>) {
+    return request<PackageItemResult>(
+      `/packages/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }
+    )
+  },
+
+  remove(id: string) {
+    return request<PackageDeleteApiResult>(
+      `/packages/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+      }
+    )
+  },
+}
+
 export interface ProviderProfilePayload {
   businessName: string
   bio: string | null
@@ -405,3 +624,190 @@ export const serviceAreaApi = {
     )
   },
 }
+
+export interface PortfolioListResult {
+  items: PortfolioItem[]
+}
+
+export interface PortfolioMineResult {
+  items: PortfolioItem[]
+  total: number
+  limit: number
+  remainingSlots: number
+}
+
+export interface PortfolioUploadUrlPayload {
+  fileName: string
+  contentType: PortfolioContentType
+  size: number
+  /**
+   * `replace` untuk ganti foto item yang sudah ada (tidak dicek batas 20 item).
+   * Wajib disertai `portfolioId` item milik sendiri.
+   */
+  purpose?: 'create' | 'replace'
+  portfolioId?: string
+}
+
+export interface PortfolioUploadUrlResult {
+  uploadUrl: string
+  imagePath: string
+}
+
+export interface PortfolioItemResult {
+  item: PortfolioItem
+  message?: string
+}
+
+export interface PortfolioDeleteApiResult {
+  deletedId: string
+  fileCleanupFailed: boolean
+  message: string
+}
+
+export interface PortfolioCreatePayload {
+  title: string
+  description: string | null
+  imagePath: string
+}
+
+export type PortfolioUpdatePayload = Partial<PortfolioCreatePayload>
+
+function uploadError(status: number, text: string): ApiError {
+  if (status === 0) {
+    return new ApiError(
+      0,
+      'UPLOAD_FAILED',
+      'Foto gagal diunggah. Periksa koneksi lalu coba lagi.'
+    )
+  }
+  if (status === 413 || /413|too large|exceeded/i.test(text)) {
+    return new ApiError(status, 'FILE_TOO_LARGE', 'Ukuran foto melebihi 5 MB.')
+  }
+  if (/mime|content.?type/i.test(text)) {
+    return new ApiError(status, 'INVALID_FILE_TYPE', 'Format foto harus JPG atau PNG.')
+  }
+  return new ApiError(status, 'UPLOAD_FAILED', 'Foto gagal diunggah. Coba lagi.')
+}
+
+/**
+ * Mengunggah file langsung ke signed upload URL Supabase (tidak lewat backend).
+ * Memakai XMLHttpRequest karena `fetch` belum bisa melaporkan progres unggah.
+ */
+function uploadToSignedUrl(
+  uploadUrl: string,
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('PUT', uploadUrl)
+    xhr.setRequestHeader('Content-Type', file.type)
+
+    xhr.upload.onprogress = (event) => {
+      if (onProgress && event.lengthComputable && event.total > 0) {
+        onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)))
+      }
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(100)
+        resolve()
+      } else {
+        reject(uploadError(xhr.status, xhr.responseText ?? ''))
+      }
+    }
+    xhr.onerror = () => reject(uploadError(0, ''))
+    xhr.onabort = () => reject(uploadError(0, ''))
+    xhr.send(file)
+  })
+}
+
+export const portfolioApi = {
+  listMine() {
+    return request<PortfolioMineResult>('/providers/me/portfolio')
+  },
+
+  listByProvider(providerId: string) {
+    return request<PortfolioListResult>(
+      `/providers/${encodeURIComponent(providerId)}/portfolio`
+    )
+  },
+
+  requestUploadUrl(input: PortfolioUploadUrlPayload) {
+    return request<PortfolioUploadUrlResult>(
+      '/providers/me/portfolio/upload-url',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }
+    )
+  },
+
+  uploadFile(uploadUrl: string, file: File, onProgress?: (percent: number) => void) {
+    return uploadToSignedUrl(uploadUrl, file, onProgress)
+  },
+
+  create(input: PortfolioCreatePayload) {
+    return request<PortfolioItemResult>('/providers/me/portfolio', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  },
+
+  update(id: string, input: PortfolioUpdatePayload) {
+    return request<PortfolioItemResult>(
+      `/providers/me/portfolio/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }
+    )
+  },
+
+  remove(id: string) {
+    return request<PortfolioDeleteApiResult>(
+      `/providers/me/portfolio/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+      }
+    )
+  },
+}
+
+export const favoritesApi = {
+  list(itemType?: FavoriteItemType) {
+    const query = itemType ? `?itemType=${encodeURIComponent(itemType)}` : ''
+    return request<{ favorites: FavoriteItem[]; count: number }>(`/favorites${query}`)
+  },
+
+  getById(id: string) {
+    return request<{ favorite: FavoriteItem }>(`/favorites/${encodeURIComponent(id)}`)
+  },
+
+  add(payload: CreateFavoritePayload) {
+    return request<{ favorite: FavoriteItem; message: string }>('/favorites', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+
+  update(id: string, payload: UpdateFavoritePayload) {
+    return request<{ favorite: FavoriteItem; message: string }>(
+      `/favorites/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }
+    )
+  },
+
+  remove(id: string) {
+    return request<{ deletedId: string; message: string }>(
+      `/favorites/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+      }
+    )
+  },
+}
+
