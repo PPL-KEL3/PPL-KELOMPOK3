@@ -13,6 +13,14 @@ export type VerificationIssueType = (typeof VERIFICATION_ISSUE_TYPES)[number]
 export const VERIFICATION_STATUSES = ['open', 'in_progress', 'resolved', 'duplicate', 'closed'] as const
 export type VerificationStatus = (typeof VERIFICATION_STATUSES)[number]
 
+const ALLOWED_STATUS_TRANSITIONS: Record<VerificationStatus, readonly VerificationStatus[]> = {
+  open: ['in_progress', 'resolved', 'duplicate'],
+  in_progress: ['resolved', 'duplicate'],
+  resolved: ['closed'],
+  duplicate: ['closed'],
+  closed: [],
+}
+
 export interface VerificationCaseDto {
   id: string
   paymentId: string
@@ -95,14 +103,20 @@ function validateStatus(value: unknown): VerificationStatus {
   throw new AppError(400, 'INVALID_VERIFICATION_STATUS', 'Status pemeriksaan tidak valid.')
 }
 
+export function validateVerificationStatusTransition(current: VerificationStatus, next: VerificationStatus): void {
+  if (current === next) return
+  if (!ALLOWED_STATUS_TRANSITIONS[current].includes(next)) {
+    throw new AppError(409, 'INVALID_VERIFICATION_STATUS_TRANSITION', `Kasus tidak dapat berpindah dari ${current} ke ${next}.`)
+  }
+}
+
+export function normalizeDecisionNote(value: unknown, field = 'Catatan keputusan'): string {
+  return validateText(value, field)
+}
+
 function validateText(value: unknown, field: string, max = 2000): string {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > max) throw new AppError(400, 'VALIDATION_ERROR', `${field} wajib diisi dan maksimal ${max} karakter.`)
   return value.trim()
-}
-
-async function recordEvent(caseId: string, actorAdminId: string, eventType: string, accessToken: string, fromStatus?: string, toStatus?: string, note?: string) {
-  const { error } = await createSupabaseClient(accessToken).from('payment_verification_case_events').insert({ case_id: caseId, actor_admin_id: actorAdminId, event_type: eventType, from_status: fromStatus ?? null, to_status: toStatus ?? null, note: note ?? null })
-  if (error) throw mapError(error)
 }
 
 export async function listVerificationCases(input: { page: number; pageSize: number; search?: string; status?: string; issueType?: string }, accessToken: string) {
@@ -129,9 +143,7 @@ export async function createVerificationCase(input: { paymentId: string; issueTy
   const { data, error } = await createSupabaseClient(accessToken).from('payment_verification_cases').insert({ payment_id: payment.id, booking_id: payment.booking_id, issue_type: issueType, description, assigned_admin_id: input.assignedAdminId ?? null, created_by: adminId }).select(CASE_COLUMNS).single()
   if (error) throw mapError(error)
   if (!data) throw new AppError(502, 'VERIFICATION_CASE_CREATE_FAILED', 'Kasus verifikasi gagal dibuat.')
-  const result = mapRow(data as CaseRow)
-  await recordEvent(result.id, adminId, 'created', accessToken, undefined, result.status, description)
-  return result
+  return mapRow(data as CaseRow)
 }
 
 export async function getVerificationCase(caseId: string, accessToken: string) {
@@ -148,7 +160,9 @@ export async function updateVerificationCase(caseId: string, input: { status?: u
   const changes: Record<string, unknown> = {}
   const nextStatus = input.status === undefined ? current.status : validateStatus(input.status)
   if (nextStatus === 'closed') throw new AppError(400, 'USE_CLOSE_ENDPOINT', 'Gunakan endpoint penutupan untuk menutup kasus.')
-  if (input.decisionNotes !== undefined) changes.decision_notes = input.decisionNotes === null ? null : validateText(input.decisionNotes, 'Catatan keputusan')
+  validateVerificationStatusTransition(current.status, nextStatus)
+  if (input.status !== undefined && nextStatus !== current.status && input.decisionNotes === undefined) throw new AppError(400, 'DECISION_NOTE_REQUIRED', 'Alasan wajib diisi ketika status pemeriksaan berubah.')
+  if (input.decisionNotes !== undefined) changes.decision_notes = input.decisionNotes === null ? null : normalizeDecisionNote(input.decisionNotes)
   if (input.assignedAdminId !== undefined) changes.assigned_admin_id = input.assignedAdminId
   if (input.status !== undefined) changes.status = nextStatus
   changes.assigned_admin_id ??= adminId
@@ -156,22 +170,18 @@ export async function updateVerificationCase(caseId: string, input: { status?: u
   const { data, error } = await createSupabaseClient(accessToken).from('payment_verification_cases').update(changes).eq('id', caseId).eq('status', current.status).select(CASE_COLUMNS).maybeSingle()
   if (error) throw mapError(error)
   if (!data) throw new AppError(409, 'VERIFICATION_CASE_UPDATE_CONFLICT', 'Kasus berubah bersamaan. Muat ulang data.')
-  const result = mapRow(data as CaseRow)
-  await recordEvent(caseId, adminId, 'updated', accessToken, current.status, result.status, result.decisionNotes ?? undefined)
-  return result
+  return mapRow(data as CaseRow)
 }
 
 export async function closeVerificationCase(caseId: string, note: unknown, adminId: string, accessToken: string) {
   const current = await getVerificationCase(caseId, accessToken)
   if (current.status === 'closed') return current
   if (current.status !== 'resolved' && current.status !== 'duplicate') throw new AppError(409, 'VERIFICATION_CASE_NOT_READY_TO_CLOSE', 'Kasus harus berstatus selesai atau duplikat sebelum ditutup.')
-  const decisionNotes = note === undefined || note === null ? current.decisionNotes : validateText(note, 'Catatan penutupan')
+  const decisionNotes = note === undefined || note === null ? normalizeDecisionNote(current.decisionNotes, 'Catatan penutupan') : normalizeDecisionNote(note, 'Catatan penutupan')
   const { data, error } = await createSupabaseClient(accessToken).from('payment_verification_cases').update({ status: 'closed', closed_at: new Date().toISOString(), decision_notes: decisionNotes, assigned_admin_id: current.assignedAdminId ?? adminId }).eq('id', caseId).eq('status', current.status).select(CASE_COLUMNS).maybeSingle()
   if (error) throw mapError(error)
   if (!data) throw new AppError(409, 'VERIFICATION_CASE_UPDATE_CONFLICT', 'Kasus berubah bersamaan. Muat ulang data.')
-  const result = mapRow(data as CaseRow)
-  await recordEvent(caseId, adminId, 'closed', accessToken, current.status, 'closed', result.decisionNotes ?? undefined)
-  return result
+  return mapRow(data as CaseRow)
 }
 
 export async function markVerificationDuplicate(caseId: string, duplicateOfCaseId: string, note: unknown, adminId: string, accessToken: string) {
@@ -180,11 +190,9 @@ export async function markVerificationDuplicate(caseId: string, duplicateOfCaseI
   if (current.status === 'closed') throw new AppError(409, 'VERIFICATION_CASE_CLOSED', 'Kasus yang sudah ditutup tidak dapat diubah.')
   const primary = await getVerificationCase(duplicateOfCaseId, accessToken)
   if (primary.status === 'duplicate') throw new AppError(400, 'INVALID_DUPLICATE_PRIMARY', 'Kasus utama tidak boleh berstatus duplikat.')
-  const decisionNotes = note === undefined || note === null ? current.decisionNotes : validateText(note, 'Alasan duplikat')
+  const decisionNotes = note === undefined || note === null ? normalizeDecisionNote(current.decisionNotes, 'Alasan duplikat') : normalizeDecisionNote(note, 'Alasan duplikat')
   const { data, error } = await createSupabaseClient(accessToken).from('payment_verification_cases').update({ status: 'duplicate', duplicate_of_case_id: primary.id, decision_notes: decisionNotes, assigned_admin_id: current.assignedAdminId ?? adminId }).eq('id', caseId).eq('status', current.status).select(CASE_COLUMNS).maybeSingle()
   if (error) throw mapError(error)
   if (!data) throw new AppError(409, 'VERIFICATION_CASE_UPDATE_CONFLICT', 'Kasus berubah bersamaan. Muat ulang data.')
-  const result = mapRow(data as CaseRow)
-  await recordEvent(caseId, adminId, 'marked_duplicate', accessToken, current.status, 'duplicate', result.decisionNotes ?? undefined)
-  return result
+  return mapRow(data as CaseRow)
 }
