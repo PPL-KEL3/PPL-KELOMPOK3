@@ -42,13 +42,13 @@ export function FavoriteCard({ item, onEdit, onDelete }: FavoriteCardProps) {
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             <span
               style={{
-                fontSize: '0.75rem',
-                fontWeight: 600,
+                fontSize: '11px',
+                fontWeight: 700,
                 padding: '3px 8px',
                 borderRadius: '6px',
-                backgroundColor: isService ? '#eff6ff' : '#f0fdf4',
-                color: isService ? '#1d4ed8' : '#15803d',
-                border: `1px solid ${isService ? '#bfdbfe' : '#bbf7d0'}`,
+                backgroundColor: isService ? 'var(--auth-success-soft, #eaf3ec)' : '#f5f8f5',
+                color: isService ? 'var(--auth-primary, #245b45)' : 'var(--auth-dark, #183f32)',
+                border: `1px solid ${isService ? '#cfdbd1' : '#d4dfd6'}`,
               }}
             >
               {isService ? 'Layanan Jasa' : 'Penyedia Jasa'}
@@ -184,51 +184,57 @@ export function FavoriteCard({ item, onEdit, onDelete }: FavoriteCardProps) {
       >
         {target.price !== undefined && target.price !== null ? (
           <div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Mulai dari</div>
-            <strong style={{ fontSize: '1.05rem', color: '#0284c7' }}>
+            <div style={{ fontSize: '11px', color: 'var(--auth-muted, #78847c)', fontWeight: 600 }}>Mulai dari</div>
+            <strong style={{ fontSize: '1.15rem', color: 'var(--auth-primary, #245b45)', fontWeight: 800 }}>
               {formatRupiah(target.price)}
             </strong>
           </div>
         ) : (
-          <div style={{ fontSize: '0.85rem', color: '#16a34a', fontWeight: 600 }}>
+          <div style={{ fontSize: '12px', color: 'var(--auth-primary, #245b45)', fontWeight: 700 }}>
             Penyedia Terverifikasi
           </div>
         )}
 
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {isService && item.serviceId ? (
-            <>
-              <Link
-                href={`/customer/booking/new?serviceId=${encodeURIComponent(item.serviceId)}`}
-                className="btn btn--primary"
-                style={{
-                  fontSize: '0.8rem',
-                  padding: '6px 12px',
-                  backgroundColor: '#0284c7',
-                  color: '#fff',
-                  borderRadius: '6px',
-                  textDecoration: 'none',
-                }}
-              >
-                Booking
-              </Link>
-            </>
+            <Link
+              href={`/customer/booking/new?serviceId=${encodeURIComponent(item.serviceId)}`}
+              style={{
+                fontSize: '12px',
+                fontWeight: 700,
+                padding: '6px 14px',
+                backgroundColor: 'var(--auth-primary, #245b45)',
+                color: '#fff',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                transition: 'background 150ms ease',
+              }}
+            >
+              Booking
+            </Link>
           ) : null}
 
           {item.providerId && (
             <Link
               href={`/providers/${encodeURIComponent(item.providerId)}`}
-              className="btn btn--secondary"
+              className="catalog-profile-link"
               style={{
-                fontSize: '0.8rem',
-                padding: '6px 12px',
-                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 700,
+                padding: '0 12px',
+                minHeight: '32px',
+                borderRadius: '8px',
                 textDecoration: 'none',
-                border: '1px solid #cbd5e1',
-                color: '#334155',
+                border: '1px solid #cfdbd1',
+                color: 'var(--auth-primary, #245b45)',
+                backgroundColor: '#ffffff',
+                display: 'inline-flex',
+                alignItems: 'center',
               }}
             >
-              Profil Lengkap
+              Lihat Profil
             </Link>
           )}
 
