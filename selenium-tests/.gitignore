@@ -1,0 +1,23 @@
+# ---------------------------------------------------------------------------
+# Jangan di-commit: kredensial akun uji dan kunci Supabase.
+# Setiap orang membuat .env sendiri dari .env.example.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# Lingkungan Python lokal (masing-masing orang punya sendiri)
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# File uji (gambar dan PDF) yang dibuat otomatis saat tes berjalan
+_files/
+
+# Hasil dan rekaman lokal (bukan bagian dari kode)
+reports/
+*.mp4
+*.gif
+*.log

@@ -134,7 +134,7 @@ export function PortfolioManagementClient() {
           title="Belum ada portofolio."
           text="Tambahkan foto hasil kerja pertama kamu supaya calon pelanggan bisa menilai kualitasnya."
           action={
-            <button type="button" className="pkg-btn pkg-btn--primary pkg-btn--sm" onClick={openCreate}>
+            <button type="button" className="pkg-btn pkg-btn--primary pkg-btn--sm" data-testid="pf-empty-add" onClick={openCreate}>
               <PlusIcon size={14} />
               <span>Tambah Portofolio</span>
             </button>
@@ -183,6 +183,7 @@ export function PortfolioManagementClient() {
               <button
                 type="button"
                 className="pkg-btn pkg-btn--primary"
+                data-testid="pf-add"
                 onClick={openCreate}
                 disabled={!canAdd}
               >
@@ -190,7 +191,7 @@ export function PortfolioManagementClient() {
                 <span>Tambah Portofolio</span>
               </button>
               {ready && (
-                <span className="pf-slots">
+                <span className="pf-slots" data-testid="pf-slots">
                   <FolderOpenIcon size={14} />
                   <span>{remainingSlots} slot tersisa</span>
                 </span>
@@ -199,7 +200,7 @@ export function PortfolioManagementClient() {
           </div>
 
           {ready && limitReached && (
-            <div className="pkg-notice pkg-notice--warning" role="status">
+            <div className="pkg-notice pkg-notice--warning" role="status" data-testid="pf-limit-notice">
               <AlertIcon size={16} />
               <span>
                 Maksimal {PORTFOLIO_MAX_ITEMS} item per penyedia. Hapus item lama untuk
@@ -209,7 +210,7 @@ export function PortfolioManagementClient() {
           )}
 
           {leftoverNotice && (
-            <div className="pkg-notice pkg-notice--warning pf-notice" role="status">
+            <div className="pkg-notice pkg-notice--warning pf-notice" role="status" data-testid="pf-leftover-notice">
               <AlertIcon size={16} />
               <span>
                 <strong>Item terhapus, file masih tertinggal.</strong> Data portofolio
@@ -262,11 +263,11 @@ interface StatePanelProps {
 
 function StatePanel({ icon, title, text, action, tone = 'default' }: StatePanelProps) {
   return (
-    <div className="pkg-state" role={tone === 'error' ? 'alert' : 'status'}>
+    <div className="pkg-state" role={tone === 'error' ? 'alert' : 'status'} data-testid="pf-state">
       <span className={`pkg-state__icon${tone === 'error' ? ' pkg-state__icon--error' : ''}`}>
         {icon}
       </span>
-      <h3>{title}</h3>
+      <h3 data-testid="pf-state-title">{title}</h3>
       <p>{text}</p>
       {action}
     </div>

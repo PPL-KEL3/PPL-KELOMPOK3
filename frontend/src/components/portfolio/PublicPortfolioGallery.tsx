@@ -48,7 +48,7 @@ export function PublicPortfolioGallery({
           <span className="pfpub-eyebrow">Portofolio</span>
           <Heading className="pfpub-head__title">{title}</Heading>
         </div>
-        <span className="pfpub-count">{items.length} foto</span>
+        <span className="pfpub-count" data-testid="pfpub-count">{items.length} foto</span>
       </div>
 
       <ul className="pfpub-grid">
@@ -60,11 +60,12 @@ export function PublicPortfolioGallery({
               }}
               type="button"
               className="pfpub-tile"
+              data-testid="pfpub-tile"
               onClick={() => changeIndex(index)}
               aria-label={`Perbesar foto: ${item.title}`}
             >
               <img src={item.imageUrl} alt="" loading="lazy" />
-              <span className="pfpub-tile__title">{item.title}</span>
+              <span className="pfpub-tile__title" data-testid="pfpub-tile-title">{item.title}</span>
             </button>
           </li>
         ))}

@@ -34,6 +34,9 @@ export function EditFavoriteModal({
 
   useEffect(() => {
     if (!open) return
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape' && !submitting) {
         event.preventDefault()
@@ -41,7 +44,10 @@ export function EditFavoriteModal({
       }
     }
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.style.overflow = prevOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
   }, [open, submitting, onClose])
 
   if (!open || !item) return null
