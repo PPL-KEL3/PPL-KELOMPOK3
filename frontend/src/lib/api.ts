@@ -349,6 +349,10 @@ export interface PaymentData {
   amount: number
   paymentMethod: 'qris'
   status: 'unpaid' | 'paid'
+  sessionStatus: 'active' | 'expired' | 'cancelled' | 'completed'
+  expiresAt: string
+  cancelledAt: string | null
+  sessionVersion: number
   paidAt: string | null
   createdAt: string
   updatedAt: string
@@ -385,6 +389,18 @@ export const bookingApi = {
 
   getPayment(id: string) {
     return request<{ payment: PaymentData }>(`/bookings/${encodeURIComponent(id)}/payment`)
+  },
+
+  refreshPayment(id: string) {
+    return request<{ payment: PaymentData }>(`/bookings/${encodeURIComponent(id)}/payment/refresh`, { method: 'POST' })
+  },
+
+  regeneratePayment(id: string) {
+    return request<{ payment: PaymentData }>(`/bookings/${encodeURIComponent(id)}/payment/regenerate`, { method: 'POST' })
+  },
+
+  cancelPayment(id: string) {
+    return request<{ payment: PaymentData }>(`/bookings/${encodeURIComponent(id)}/payment/cancel`, { method: 'POST' })
   },
 
   update(id: string, input: Partial<Pick<BookingDraft, 'packageId' | 'workDate' | 'workTime'>>) {
