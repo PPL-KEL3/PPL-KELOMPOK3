@@ -154,7 +154,12 @@ def open_areas(driver, api):
     login(driver, api)
     driver.get(BASE_URL + "/provider/profile")
     card = css(driver, ".prf-sa-card")
-    wait(driver).until(lambda d: d.find_elements(By.CSS_SELECTOR, ".prf-sa-item, .prf-sa-card .prf-state-panel"))
+    # Tunggu sampai state loading selesai: daftar wilayah, empty state, atau error.
+    wait(driver).until(
+        lambda d: d.find_elements(By.CSS_SELECTOR, ".prf-sa-item")
+        or d.find_elements(By.CSS_SELECTOR, ".prf-sa-card .prf-state-panel--empty")
+        or d.find_elements(By.CSS_SELECTOR, ".prf-sa-card .prf-state-panel--error")
+    )
     return card
 
 

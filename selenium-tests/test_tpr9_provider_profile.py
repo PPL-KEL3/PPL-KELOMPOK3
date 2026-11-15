@@ -174,6 +174,11 @@ def open_profile(driver, api):
     login(driver, api)
     driver.get(BASE_URL + "/provider/profile")
     css(driver, "#provider-business-name")
+    # Tunggu useEffect profil selesai mengisi form. Kategori terisi lebih lambat
+    # daripada render pertama, jadi aman dipakai sebagai penanda hydrasi.
+    wait(driver).until(
+        lambda d: d.find_element(By.ID, "provider-category").get_attribute("value")
+    )
 
 
 FIELDS = {
