@@ -141,7 +141,13 @@ export function BookingDetailClient({ bookingId }: { bookingId: string }) {
             </div>
           </section>
         )}
-        <Link href={`/customer/booking/${booking.id}/payment`} className="booking-secondary payment-detail-link">Lihat Pembayaran QRIS</Link>
+         <div className="booking-detail-actions">
+           {booking.status === 'accepted' ? (
+             <Link href={`/customer/booking/${booking.id}/payment`} className="booking-submit payment-detail-link">Lihat Pembayaran QRIS</Link>
+           ) : (
+             <p className="booking-detail-note"><InfoIcon size={16} />Pembayaran QRIS tersedia setelah penyedia jasa menerima booking ini.</p>
+           )}
+         </div>
       </div>
 
       <ReviewFormModal

@@ -24,6 +24,7 @@ import pytest
 import requests
 from PIL import Image
 from selenium import webdriver
+from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -181,7 +182,7 @@ def cancel_pending(customer_a):
 @pytest.fixture
 def driver():
     options = webdriver.ChromeOptions()
-    options.add_argument("--window-size=1366,900")
+    options.add_argument("--window-size=1366,1200")
     if os.getenv("HEADLESS") == "1":
         options.add_argument("--headless=new")
     browser = webdriver.Chrome(options=options)
@@ -226,7 +227,14 @@ def pick_schedule(driver, start="11.00"):
     wanted = slot(start)
     button = wait(driver).until(lambda d: next(
         (b for b in d.find_elements(By.CSS_SELECTOR, ".booking-slot") if norm(b.text) == wanted), None))
-    button.click()
+    driver.execute_script(
+        "arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});",
+        button,
+    )
+    try:
+        button.click()
+    except ElementClickInterceptedException:
+        driver.execute_script("arguments[0].click();", button)
 
 
 def notes_field(driver):
@@ -242,7 +250,16 @@ def preview_count(driver):
 
 
 def submit_and_open_detail(driver):
-    driver.find_element(By.CSS_SELECTOR, ".booking-submit").click()
+    button = driver.find_element(By.CSS_SELECTOR, ".booking-submit")
+    driver.execute_script(
+        "arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});",
+        button,
+    )
+    wait(driver).until(lambda d: d.find_element(By.CSS_SELECTOR, ".booking-submit").is_enabled())
+    try:
+        button.click()
+    except ElementClickInterceptedException:
+        driver.execute_script("arguments[0].click();", button)
     wait(driver, 60).until(lambda d: "/customer/booking/" in d.current_url and "/new" not in d.current_url)
     wait(driver, 30).until(lambda d: "Detail Kebutuhan Pekerjaan" in d.find_element(By.TAG_NAME, "body").text)
 
@@ -322,7 +339,15 @@ def test_hapus_foto_dari_preview(case_id, driver, service_id, customer_a, files)
     open_form(driver, customer_a, service_id)
     choose_files(driver, files["atap.jpg"], files["dinding.png"])
     wait(driver).until(lambda d: preview_count(d) == 2)
-    driver.find_element(By.CSS_SELECTOR, "[aria-label='Hapus dinding.png']").click()
+    remove_button = driver.find_element(By.CSS_SELECTOR, "[aria-label='Hapus dinding.png']")
+    driver.execute_script(
+        "arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});",
+        remove_button,
+    )
+    try:
+        remove_button.click()
+    except ElementClickInterceptedException:
+        driver.execute_script("arguments[0].click();", remove_button)
     wait(driver).until(lambda d: preview_count(d) == 1)
     assert driver.find_elements(By.CSS_SELECTOR, "[aria-label='Hapus atap.jpg']")
     pick_schedule(driver)

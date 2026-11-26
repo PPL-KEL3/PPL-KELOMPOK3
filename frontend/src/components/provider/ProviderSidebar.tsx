@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/ToastProvider'
 import { LokaLogo } from '@/components/ui/LokaLogo'
 import {
   BriefcaseIcon,
+  CalendarIcon,
   IdCardIcon,
   ImageIcon,
   LayoutDashboardIcon,
@@ -30,6 +31,7 @@ interface NavItem {
 export const PROVIDER_NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', href: '/provider/dashboard', icon: LayoutDashboardIcon, match: 'exact' },
   { label: 'Daftar Jasa', href: '/provider/dashboard/services', icon: BriefcaseIcon, match: 'prefix' },
+  { label: 'Pesanan Masuk', href: '/provider/dashboard/bookings', icon: CalendarIcon, match: 'prefix' },
   { label: 'Profil Penyedia', href: '/provider/profile', icon: IdCardIcon, match: 'prefix' },
   { label: 'Paket & Harga', href: '/provider/dashboard/packages', icon: PackageIcon, match: 'prefix' },
   { label: 'Portofolio', href: '/provider/dashboard/portfolio', icon: ImageIcon, match: 'prefix' },

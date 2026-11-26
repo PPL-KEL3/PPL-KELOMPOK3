@@ -21,6 +21,18 @@ export interface PaymentDto {
   updatedAt: string
 }
 
+export interface AdminPaymentDto extends PaymentDto {
+  booking: {
+    workDate: string
+    workTime: string
+    status: string
+    serviceName: string
+    customerName: string
+    customerEmail: string
+    providerName: string
+  } | null
+}
+
 interface PaymentRow {
   id: string
   booking_id: string
@@ -38,6 +50,7 @@ interface PaymentRow {
 }
 
 const PAYMENT_COLUMNS = 'id, booking_id, customer_id, amount, payment_method, status, session_status, expires_at, cancelled_at, session_version, paid_at, created_at, updated_at'
+const ADMIN_PAYMENT_COLUMNS = `${PAYMENT_COLUMNS}, bookings!payments_booking_id_fkey(work_date, work_time, status, services!bookings_service_fkey(name), customer:profiles!bookings_customer_id_fkey(full_name, email), provider:profiles!bookings_provider_id_fkey(full_name))`
 
 function ensureConfigured() {
   if (!supabaseConfigured) throw new AppError(503, 'PAYMENT_SERVICE_UNAVAILABLE', 'Layanan pembayaran belum dikonfigurasi.')
@@ -58,6 +71,31 @@ function mapRow(row: PaymentRow): PaymentDto {
     paidAt: row.paid_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  }
+}
+
+function nestedValue(value: unknown): Record<string, unknown> | null {
+  const item = Array.isArray(value) ? value[0] : value
+  return item && typeof item === 'object' ? item as Record<string, unknown> : null
+}
+
+function mapAdminRow(row: PaymentRow & { bookings?: unknown }): AdminPaymentDto {
+  const payment = mapRow(row)
+  const booking = nestedValue(row.bookings)
+  const service = nestedValue(booking?.services)
+  const customer = nestedValue(booking?.customer)
+  const provider = nestedValue(booking?.provider)
+  return {
+    ...payment,
+    booking: booking ? {
+      workDate: String(booking.work_date ?? ''),
+      workTime: String(booking.work_time ?? ''),
+      status: String(booking.status ?? ''),
+      serviceName: String(service?.name ?? 'Jasa LOKA'),
+      customerName: String(customer?.full_name ?? 'Customer LOKA'),
+      customerEmail: String(customer?.email ?? ''),
+      providerName: String(provider?.full_name ?? 'Penyedia Jasa LOKA'),
+    } : null,
   }
 }
 
@@ -152,6 +190,27 @@ export async function cancelPayment(bookingId: string, customerId: string, acces
   return mapRow(updated)
 }
 
+/**
+ * Konfirmasi pembayaran lokal untuk demo. Pada integrasi gateway nyata,
+ * fungsi ini akan digantikan oleh callback/webhook gateway.
+ */
+export async function confirmDemoPayment(bookingId: string, customerId: string, accessToken: string): Promise<PaymentDto> {
+  const payment = await getPayment(bookingId, customerId, accessToken)
+  if (payment.status === PAYMENT_STATUSES.PAID) return payment
+  if (payment.sessionStatus !== 'active' || new Date(payment.expiresAt).getTime() <= Date.now()) {
+    throw new AppError(409, 'PAYMENT_SESSION_INACTIVE', 'Sesi pembayaran sudah tidak aktif.')
+  }
+
+  const { data, error } = await createSupabaseClient(accessToken).rpc('confirm_demo_payment', { p_payment_id: payment.id })
+  if (error) {
+    if (error.code === 'P0001') throw new AppError(409, 'PAYMENT_SESSION_INACTIVE', error.message)
+    throw mapDatabaseError(error)
+  }
+  if (!data) throw new AppError(409, 'PAYMENT_UPDATE_CONFLICT', 'Status pembayaran berubah bersamaan.')
+  const updated = data as PaymentRow
+  return mapRow(updated)
+}
+
 export async function markPaymentPaid(paymentId: string, accessToken: string): Promise<PaymentDto> {
   ensureConfigured()
   const { data: current, error: findError } = await createSupabaseClient(accessToken).from('payments').select(PAYMENT_COLUMNS).eq('id', paymentId).maybeSingle()
@@ -167,4 +226,14 @@ export async function markPaymentPaid(paymentId: string, accessToken: string): P
   const payment = data as PaymentRow
   await recordEvent(payment.id, payment.session_version, 'completed', accessToken)
   return mapRow(payment)
+}
+
+export async function listAdminPayments(accessToken: string): Promise<AdminPaymentDto[]> {
+  ensureConfigured()
+  const { data, error } = await createSupabaseClient(accessToken)
+    .from('payments')
+    .select(ADMIN_PAYMENT_COLUMNS)
+    .order('created_at', { ascending: false })
+  if (error) throw mapDatabaseError(error)
+  return ((data ?? []) as Array<PaymentRow & { bookings?: unknown }>).map(mapAdminRow)
 }

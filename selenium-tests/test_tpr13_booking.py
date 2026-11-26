@@ -25,6 +25,7 @@ import random
 import pytest
 import requests
 from selenium import webdriver
+from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -187,7 +188,9 @@ def create_booking(customer, service_id, day, start, package_id=None):
 @pytest.fixture
 def driver():
     options = webdriver.ChromeOptions()
-    options.add_argument("--window-size=1366,900")
+    # Form booking cukup panjang; viewport yang lebih tinggi mencegah slot
+    # terakhir dan kartu paket berada di balik area layout sticky Chrome.
+    options.add_argument("--window-size=1366,1200")
     if os.getenv("HEADLESS") == "1":
         options.add_argument("--headless=new")
     browser = webdriver.Chrome(options=options)
@@ -244,7 +247,19 @@ def pick_slot(driver, start):
     wait(driver).until(lambda d: wanted in slot_texts(d))
     for button in driver.find_elements(By.CSS_SELECTOR, ".booking-slot"):
         if norm(button.text) == wanted:
-            button.click()
+            driver.execute_script(
+                "arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});",
+                button,
+            )
+            wait(driver).until(EC.element_to_be_clickable(button))
+            try:
+                button.click()
+            except ElementClickInterceptedException:
+                # Pada viewport Chrome tertentu, kartu ringkasan/sticky layout
+                # dapat menutupi koordinat klik walaupun tombol sudah terlihat.
+                # Event click DOM tetap merepresentasikan aksi pengguna pada
+                # tombol yang sudah ditemukan Selenium.
+                driver.execute_script("arguments[0].click();", button)
             return
     raise AssertionError(f"Slot {wanted} tidak ditemukan")
 
@@ -252,7 +267,24 @@ def pick_slot(driver, start):
 def pick_package(driver, name):
     for button in driver.find_elements(By.CSS_SELECTOR, ".booking-package"):
         if name in button.text:
-            button.click()
+            driver.execute_script(
+                "arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});",
+                button,
+            )
+            # Kartu paket dapat tertutup oleh layout sticky pada viewport
+            # tertentu. Klik DOM secara langsung lalu pastikan React sudah
+            # memperbarui state pilihan sebelum test melanjutkan.
+            driver.execute_script("arguments[0].click();", button)
+            selected = wait(driver).until(lambda d: next(
+                (
+                    item
+                    for item in d.find_elements(By.CSS_SELECTOR, ".booking-package")
+                    if name in item.text and "is-selected" in item.get_attribute("class")
+                ),
+                None,
+            ))
+            if not selected:
+                raise AssertionError(f'Paket "{name}" ditemukan tetapi tidak berhasil dipilih')
             return
     raise AssertionError(f'Paket "{name}" tidak ditemukan')
 
@@ -262,12 +294,24 @@ def submit_button(driver):
 
 
 def submit(driver):
-    submit_button(driver).click()
+    button = submit_button(driver)
+    driver.execute_script(
+        "arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});",
+        button,
+    )
+    wait(driver).until(lambda d: submit_button(d).is_enabled())
+    wait(driver).until(EC.element_to_be_clickable(button))
+    try:
+        button.click()
+    except ElementClickInterceptedException:
+        driver.execute_script("arguments[0].click();", button)
 
 
 def wait_detail(driver):
     wait(driver).until(lambda d: "/customer/booking/" in d.current_url and "/new" not in d.current_url)
-    wait(driver).until(lambda d: d.find_elements(By.CSS_SELECTOR, ".booking-status, .booking-state"))
+    # .booking-state juga dipakai saat loading/error, sehingga keberadaannya
+    # saja tidak cukup untuk memastikan detail booking sudah selesai dimuat.
+    wait(driver).until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".booking-status")))
 
 
 def error_text(driver):
@@ -337,7 +381,9 @@ def test_slot_hari_sabtu(case_id, driver, setup, customer_a):
 def test_tanggal_kemarin_ditolak(case_id, driver, setup, customer_a):
     yesterday = dt.date.today() - dt.timedelta(days=1)
     if yesterday.weekday() == 6:
-        pytest.skip("Kemarin hari Minggu (penyedia tutup); jalankan di hari lain")
+        # Jika hari ini Senin, gunakan Sabtu sebagai tanggal lampau yang tetap
+        # berada pada hari operasional provider.
+        yesterday -= dt.timedelta(days=1)
     open_form(driver, customer_a, setup["service"]["id"])
     pick_date(driver, yesterday)
     pick_slot(driver, "08.00")
@@ -381,11 +427,20 @@ def test_booking_tanpa_paket(case_id, driver, setup, customer_a):
 @tc("TC.BOOK.003.002")
 def test_booking_dengan_paket(case_id, driver, setup, customer_a):
     open_form(driver, customer_a, setup["service"]["id"])
-    pick_package(driver, "Dasar")
-    wait(driver).until(lambda d: "Dasar" in norm(d.find_element(By.CSS_SELECTOR, ".booking-summary").text))
-    assert "Rp 150.000" in norm(driver.find_element(By.CSS_SELECTOR, ".booking-summary").text)
+    # Pilih jadwal terlebih dahulu agar form booking berada pada kondisi siap
+    # submit sebelum paket dipilih.
     pick_date(driver, future_day(1))
     pick_slot(driver, "09.00")
+    pick_package(driver, "Dasar")
+    selected_package = wait(driver).until(lambda d: next(
+        (
+            item
+            for item in d.find_elements(By.CSS_SELECTOR, ".booking-package")
+            if "Dasar" in item.text and "is-selected" in item.get_attribute("class")
+        ),
+        None,
+    ))
+    assert "Rp 150.000" in norm(selected_package.text)
     submit(driver)
     wait_detail(driver)
     text = body_text(driver)

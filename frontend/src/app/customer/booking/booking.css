@@ -45,6 +45,10 @@
 .booking-submit:hover:not(:disabled) { background: var(--forest-950); }
 .booking-submit:disabled { cursor: not-allowed; opacity: .45; }
 .booking-secondary { padding: 11px 16px; border: 1px solid var(--gray-light); background: var(--white); color: var(--forest-800); }
+.booking-detail-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 14px; }
+.payment-detail-link { min-width: 190px; padding: 11px 18px; text-decoration: none; }
+.payment-detail-link:hover { background: var(--forest-950); }
+.booking-detail-actions .booking-detail-note { margin: 0; }
 .booking-error { display: flex; align-items: flex-start; gap: 6px; color: #a33e38; font-size: 11px; line-height: 1.5; }
 .booking-requirements__description { color: var(--gray); font-size: 12px; line-height: 1.6; }
 .booking-requirements__field { display: grid; gap: 8px; }

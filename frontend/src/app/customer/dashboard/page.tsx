@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
+import { CustomerBookingsSection } from '@/components/customer/bookings/CustomerBookingsSection'
+import './dashboard.css'
 
 export const metadata: Metadata = {
   title: 'Dashboard Customer - LOKA',
@@ -31,6 +33,7 @@ export default function CustomerDashboardPage() {
           </p>
         </article>
       </section>
+      <CustomerBookingsSection />
     </DashboardShell>
   )
 }

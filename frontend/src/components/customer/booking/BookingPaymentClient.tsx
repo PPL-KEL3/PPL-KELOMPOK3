@@ -8,6 +8,8 @@ import { formatBookingDate } from '@/lib/booking-utils'
 import { formatRupiah } from '@/data/mock-services'
 import type { BookingDetailData } from '@/types/booking'
 
+const QRIS_IMAGE_URL = process.env.NEXT_PUBLIC_QRIS_IMAGE_URL
+
 export function BookingPaymentClient({ bookingId }: { bookingId: string }) {
   const [booking, setBooking] = useState<BookingDetailData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -88,6 +90,20 @@ export function BookingPaymentClient({ bookingId }: { bookingId: string }) {
     }
   }
 
+  async function confirmDemoPayment() {
+    if (!window.confirm('Konfirmasi pembayaran simulasi? Status pembayaran akan berubah menjadi lunas.')) return
+    setActionLoading(true)
+    setActionError(null)
+    try {
+      const result = await bookingApi.confirmDemoPayment(bookingId)
+      setPayment(result.payment)
+    } catch (reason: unknown) {
+      setActionError(reason instanceof ApiError ? reason.message : 'Pembayaran simulasi gagal dikonfirmasi.')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   if (loading) return <PaymentState title="Memuat pembayaran..." text="Kami sedang memuat informasi tagihan booking kamu." loading />
   if (error || !booking) return <PaymentState title="Pembayaran tidak dapat dimuat" text={error ?? 'Booking tidak ditemukan.'} />
 
@@ -104,16 +120,17 @@ export function BookingPaymentClient({ bookingId }: { bookingId: string }) {
         <div className="payment-layout">
           <section className="payment-qr-card" aria-labelledby="payment-session-title">
             <div className="payment-status-row"><span className={`booking-status ${payment?.status === 'paid' ? 'payment-status--paid' : payment?.sessionStatus === 'expired' ? 'payment-status--expired' : payment?.sessionStatus === 'cancelled' ? 'payment-status--cancelled' : 'payment-status--unpaid'}`}>{payment?.status === 'paid' ? 'Pembayaran Terbayar' : payment?.sessionStatus === 'expired' ? 'Sesi Kedaluwarsa' : payment?.sessionStatus === 'cancelled' ? 'Sesi Dibatalkan' : 'Belum Dibayar'}</span></div>
-            <div className="payment-qr-empty" role="status">
-              <span className="payment-qr-placeholder" aria-hidden="true"><ShieldIcon size={34} /></span>
-              <h2 id="payment-session-title">Pembayaran QRIS lokal</h2>
-              <p>{payment?.status === 'paid' ? 'Pembayaran untuk booking ini sudah ditandai terbayar oleh administrator.' : payment?.sessionStatus === 'expired' ? 'Sesi pembayaran sudah kedaluwarsa dan tidak dapat digunakan lagi.' : payment?.sessionStatus === 'cancelled' ? 'Sesi pembayaran ini sudah dibatalkan.' : 'Pembayaran QRIS belum ditandai terbayar. Halaman ini hanya mencatat status pembayaran lokal dan belum terhubung ke gateway.'}</p>
-              <div className="payment-integration-note"><InfoIcon size={16} /><span>Tidak ada kode QR yang dapat dipindai. Status pembayaran hanya dapat diperbarui dari backend oleh administrator.</span></div>
+             <div className="payment-qr-empty" role="status">
+               {QRIS_IMAGE_URL && payment?.status !== 'paid' && payment?.sessionStatus === 'active' ? <img className="payment-qr-image" src={QRIS_IMAGE_URL} alt="QRIS pembayaran LOKA" /> : <span className="payment-qr-placeholder" aria-hidden="true"><ShieldIcon size={34} /></span>}
+               <h2 id="payment-session-title">Pembayaran QRIS lokal</h2>
+               <p>{payment?.status === 'paid' ? 'Pembayaran untuk booking ini sudah ditandai terbayar oleh administrator.' : payment?.sessionStatus === 'expired' ? 'Sesi pembayaran sudah kedaluwarsa dan tidak dapat digunakan lagi.' : payment?.sessionStatus === 'cancelled' ? 'Sesi pembayaran ini sudah dibatalkan.' : QRIS_IMAGE_URL ? 'Pindai QRIS di atas menggunakan aplikasi pembayaran kamu, lalu tunggu admin mengonfirmasi pembayaran.' : 'QRIS merchant belum dikonfigurasi. Admin tetap dapat memverifikasi pembayaran secara manual setelah QRIS merchant tersedia.'}</p>
+               {!QRIS_IMAGE_URL && <div className="payment-integration-note"><InfoIcon size={16} /><span>Tambahkan NEXT_PUBLIC_QRIS_IMAGE_URL berisi URL gambar QRIS merchant agar kode dapat ditampilkan.</span></div>}
               {payment && payment.status !== 'paid' && payment.sessionStatus === 'active' && <p className="payment-expiry">Sesi berlaku sampai {formatPaymentDate(payment.expiresAt)}</p>}
               {actionError && <p className="payment-action-error" role="alert">{actionError}</p>}
               <div className="payment-actions">
-                {payment && payment.status !== 'paid' && payment.sessionStatus === 'active' && <>
-                  <button type="button" className="booking-secondary" onClick={refreshStatus} disabled={actionLoading}>{actionLoading ? 'Memperbarui...' : 'Refresh Status'}</button>
+                 {payment && payment.status !== 'paid' && payment.sessionStatus === 'active' && <>
+                   <button type="button" className="booking-primary payment-demo-button" onClick={confirmDemoPayment} disabled={actionLoading}>{actionLoading ? 'Memproses...' : 'Bayar Sekarang (Simulasi)'}</button>
+                   <button type="button" className="booking-secondary" onClick={refreshStatus} disabled={actionLoading}>{actionLoading ? 'Memperbarui...' : 'Refresh Status'}</button>
                   <button type="button" className="booking-secondary payment-danger-button" onClick={cancelSession} disabled={actionLoading}>Batalkan Pembayaran</button>
                 </>}
                 {payment && payment.status !== 'paid' && payment.sessionStatus === 'expired' && <button type="button" className="booking-secondary" onClick={regenerateSession} disabled={actionLoading}>{actionLoading ? 'Membuat ulang...' : 'Buat Sesi Baru'}</button>}

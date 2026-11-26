@@ -370,6 +370,18 @@ export interface PaymentData {
   updatedAt: string
 }
 
+export interface AdminPaymentData extends PaymentData {
+  booking: {
+    workDate: string
+    workTime: string
+    status: string
+    serviceName: string
+    customerName: string
+    customerEmail: string
+    providerName: string
+  } | null
+}
+
 export const bookingApi = {
   create(input: Omit<BookingDraft, 'providerId'>) {
     return request<BookingResult>('/bookings', {
@@ -413,6 +425,10 @@ export const bookingApi = {
 
   cancelPayment(id: string) {
     return request<{ payment: PaymentData }>(`/bookings/${encodeURIComponent(id)}/payment/cancel`, { method: 'POST' })
+  },
+
+  confirmDemoPayment(id: string) {
+    return request<{ payment: PaymentData }>(`/bookings/${encodeURIComponent(id)}/payment/confirm-demo`, { method: 'POST' })
   },
 
   update(id: string, input: Partial<Pick<BookingDraft, 'packageId' | 'workDate' | 'workTime'>>) {
@@ -468,6 +484,54 @@ export const bookingApi = {
 
   deleteRequirementAttachment(id: string, attachmentId: string) {
     return request<{ deletedId: string; fileCleanupFailed: boolean }>(`/bookings/${encodeURIComponent(id)}/requirements/attachments/${encodeURIComponent(attachmentId)}`, { method: 'DELETE' })
+  },
+}
+
+export const adminPaymentApi = {
+  list() {
+    return request<{ payments: AdminPaymentData[] }>('/admin/payments')
+  },
+
+  markPaid(paymentId: string) {
+    return request<{ payment: PaymentData }>(`/payments/${encodeURIComponent(paymentId)}/mark-paid`, { method: 'PATCH' })
+  },
+}
+
+export interface VerificationCaseData {
+  id: string
+  paymentId: string
+  bookingId: string
+  issueType: string
+  description: string
+  status: 'open' | 'in_progress' | 'resolved' | 'duplicate' | 'closed'
+  assignedAdminId: string | null
+  decisionNotes: string | null
+  createdAt: string
+  updatedAt: string
+  payment: { amount: number; status: string; paymentMethod: string; paidAt: string | null } | null
+}
+
+export const verificationCaseApi = {
+  list(params?: { page?: number; pageSize?: number; status?: string; issueType?: string; search?: string }) {
+    const query = new URLSearchParams()
+    if (params?.page) query.set('page', String(params.page))
+    if (params?.pageSize) query.set('pageSize', String(params.pageSize))
+    if (params?.status) query.set('status', params.status)
+    if (params?.issueType) query.set('issueType', params.issueType)
+    if (params?.search) query.set('search', params.search)
+    return request<{ cases: VerificationCaseData[]; pagination: { page: number; pageSize: number; total: number; totalPages: number } }>(`/admin/payment-verifications${query.toString() ? `?${query.toString()}` : ''}`)
+  },
+
+  create(input: { paymentId: string; issueType: string; description: string; assignedAdminId?: string | null }) {
+    return request<{ case: VerificationCaseData }>('/admin/payment-verifications', { method: 'POST', body: JSON.stringify(input) })
+  },
+
+  update(id: string, input: { status?: VerificationCaseData['status']; decisionNotes?: string | null; assignedAdminId?: string | null }) {
+    return request<{ case: VerificationCaseData }>(`/admin/payment-verifications/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(input) })
+  },
+
+  remove(id: string) {
+    return request<{ deleted: { id: string; deletedAt: string } }>(`/admin/payment-verifications/${encodeURIComponent(id)}`, { method: 'DELETE' })
   },
 }
 
