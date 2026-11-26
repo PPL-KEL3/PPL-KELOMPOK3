@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 
 export const metadata: Metadata = {
@@ -31,6 +32,22 @@ export default function ProviderDashboardPage() {
             permintaan ke endpoint terlindungi juga diverifikasi ulang oleh
             backend.
           </p>
+        </article>
+
+        <article className="dash-card">
+          <span className="dash-card__eyebrow">Pesanan masuk</span>
+          <h2>Lihat customer yang memesan</h2>
+          <p>
+            Pantau customer, jasa, jadwal pengerjaan, harga, dan status booking
+            yang masuk ke layananmu.
+          </p>
+          <Link
+            href="/provider/dashboard/bookings"
+            className="dash-logout"
+            style={{ display: 'inline-flex', marginTop: '16px', textDecoration: 'none' }}
+          >
+            Lihat Pesanan Masuk
+          </Link>
         </article>
       </section>
     </DashboardShell>

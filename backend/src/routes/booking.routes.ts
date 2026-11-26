@@ -17,7 +17,7 @@ import {
 } from '../services/booking.service'
 import { requireProvider } from './service.routes'
 import { requireAdmin } from './category.routes'
-import { cancelPayment, getOrCreatePayment, getPayment, markPaymentPaid, regeneratePayment } from '../services/payment.service'
+import { cancelPayment, confirmDemoPayment, getOrCreatePayment, getPayment, listAdminPayments, markPaymentPaid, regeneratePayment } from '../services/payment.service'
 import {
   createBookingRequirements,
   createUploadUrl as createRequirementsUploadUrl,
@@ -195,6 +195,16 @@ export function createBookingRouter(authMiddleware: RequestHandler = requireAuth
   router.post('/bookings/:id/payment/cancel', authMiddleware, requireCustomer, asyncHandler(async (req, res) => {
     const payment = await cancelPayment(parseId(req.params.id), req.auth!.profile.id, req.auth!.accessToken)
     sendSuccess(res, { payment })
+  }))
+
+  router.post('/bookings/:id/payment/confirm-demo', authMiddleware, requireCustomer, asyncHandler(async (req, res) => {
+    const payment = await confirmDemoPayment(parseId(req.params.id), req.auth!.profile.id, req.auth!.accessToken)
+    sendSuccess(res, { payment })
+  }))
+
+  router.get('/admin/payments', authMiddleware, requireAdmin, asyncHandler(async (req, res) => {
+    const payments = await listAdminPayments(req.auth!.accessToken)
+    sendSuccess(res, { payments })
   }))
 
   router.patch('/payments/:id/mark-paid', authMiddleware, requireAdmin, asyncHandler(async (req, res) => {

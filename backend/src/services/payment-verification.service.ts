@@ -128,6 +128,7 @@ export async function listVerificationCases(input: { page: number; pageSize: num
     const search = input.search.trim().replace(/[%(),]/g, '')
     if (search) query = query.or(`id.ilike.%${search}%,payment_id.ilike.%${search}%,booking_id.ilike.%${search}%,description.ilike.%${search}%`)
   }
+  query = query.is('deleted_at', null)
   const { data, error, count } = await query
   if (error) throw mapError(error)
   return { cases: ((data ?? []) as CaseRow[]).map(mapRow), pagination: { page: input.page, pageSize: input.pageSize, total: count ?? 0, totalPages: Math.ceil((count ?? 0) / input.pageSize) } }
@@ -148,10 +149,26 @@ export async function createVerificationCase(input: { paymentId: string; issueTy
 
 export async function getVerificationCase(caseId: string, accessToken: string) {
   ensureConfigured()
-  const { data, error } = await createSupabaseClient(accessToken).from('payment_verification_cases').select(CASE_COLUMNS).eq('id', caseId).maybeSingle()
+  const { data, error } = await createSupabaseClient(accessToken).from('payment_verification_cases').select(CASE_COLUMNS).eq('id', caseId).is('deleted_at', null).maybeSingle()
   if (error) throw mapError(error)
   if (!data) throw new AppError(404, 'VERIFICATION_CASE_NOT_FOUND', 'Kasus verifikasi tidak ditemukan.')
   return mapRow(data as CaseRow)
+}
+
+export async function deleteVerificationCase(caseId: string, adminId: string, accessToken: string) {
+  const current = await getVerificationCase(caseId, accessToken)
+  if (current.status === 'closed') throw new AppError(409, 'VERIFICATION_CASE_CLOSED', 'Kasus yang sudah ditutup tidak dapat dihapus.')
+  const note = 'Kasus diarsipkan oleh administrator melalui operasi hapus.'
+  const { data, error } = await createSupabaseClient(accessToken)
+    .from('payment_verification_cases')
+    .update({ deleted_at: new Date().toISOString(), decision_notes: note, assigned_admin_id: current.assignedAdminId ?? adminId })
+    .eq('id', caseId)
+    .is('deleted_at', null)
+    .select('id, deleted_at')
+    .maybeSingle()
+  if (error) throw mapError(error)
+  if (!data) throw new AppError(409, 'VERIFICATION_CASE_DELETE_CONFLICT', 'Kasus berubah bersamaan. Muat ulang data.')
+  return { id: data.id as string, deletedAt: data.deleted_at as string }
 }
 
 export async function updateVerificationCase(caseId: string, input: { status?: unknown; decisionNotes?: unknown; assignedAdminId?: string | null }, adminId: string, accessToken: string) {

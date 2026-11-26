@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { useToast } from '@/components/ui/ToastProvider'
 import { LokaLogo } from '@/components/ui/LokaLogo'
-import { BriefcaseIcon, HeartIcon, LayoutDashboardIcon, LogOutIcon, StarIcon } from '@/components/ui/AuthIcons'
+import { BriefcaseIcon, CalendarIcon, HeartIcon, LayoutDashboardIcon, LogOutIcon, StarIcon } from '@/components/ui/AuthIcons'
 
 type NavIcon = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>
 
@@ -17,12 +17,14 @@ const CUSTOMER_NAV_ITEMS: Array<{
   match: 'exact' | 'prefix'
 }> = [
   { label: 'Dashboard', href: '/customer/dashboard', icon: LayoutDashboardIcon, match: 'exact' },
+  { label: 'Pesanan Saya', href: '/customer/dashboard#bookings', icon: CalendarIcon, match: 'exact' },
   { label: 'Cari Jasa', href: '/customer/services', icon: BriefcaseIcon, match: 'prefix' },
   { label: 'Favorit Saya', href: '/customer/favorites', icon: HeartIcon, match: 'prefix' },
   { label: 'Ulasan Saya', href: '/customer/reviews', icon: StarIcon, match: 'prefix' },
 ]
 
 function isActive(pathname: string, href: string, match: 'exact' | 'prefix') {
+  if (href.includes('#')) return false
   const cleanPath = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
   const cleanHref = href.split('#')[0]
   if (match === 'exact') return cleanPath === cleanHref
