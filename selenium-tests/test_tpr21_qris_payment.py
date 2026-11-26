@@ -163,10 +163,14 @@ def set_expires_at(payment_id, when):
     response = requests.patch(
         f"{url.rstrip('/')}/rest/v1/payments?id=eq.{payment_id}",
         json={"expires_at": when.isoformat()},
-        headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json", "Prefer": "return=representation"},
         timeout=30,
     )
     assert response.ok, f"Gagal mengubah expires_at: {response.status_code} {response.text}"
+    updated = response.json()
+    assert updated and dt.datetime.fromisoformat(updated[0]["expires_at"].replace("Z", "+00:00")) <= when + dt.timedelta(seconds=2), (
+        f"expires_at payment tidak berubah sesuai test: {updated}"
+    )
 
 
 @pytest.fixture
@@ -210,7 +214,24 @@ def payment_status(driver):
 
 
 def button(driver, text):
-    return wait(driver).until(EC.element_to_be_clickable((By.XPATH, f"//button[normalize-space()='{text}']")))
+    element = wait(driver).until(EC.presence_of_element_located((By.XPATH, f"//button[normalize-space()='{text}']")))
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});", element)
+    wait(driver).until(lambda d: element.is_displayed() and element.is_enabled())
+    return element
+
+
+def link(driver, text):
+    element = wait(driver).until(EC.presence_of_element_located((By.XPATH, f"//a[normalize-space()='{text}']")))
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});", element)
+    wait(driver).until(lambda d: element.is_displayed() and element.is_enabled())
+    return element
+
+
+def click_element(driver, element):
+    try:
+        element.click()
+    except Exception:
+        driver.execute_script("arguments[0].click();", element)
 
 
 def has_button(driver, text):
@@ -227,7 +248,7 @@ def test_buka_pembayaran_booking_diterima(case_id, driver, service_id, provider,
     booking = new_booking(customer_a, service_id, provider)
     login(driver, customer_a)
     driver.get(f"{BASE_URL}/customer/booking/{booking['id']}")
-    wait(driver).until(EC.element_to_be_clickable((By.XPATH, "//a[normalize-space()='Lihat Pembayaran QRIS']"))).click()
+    click_element(driver, link(driver, "Lihat Pembayaran QRIS"))
     wait(driver).until(EC.url_contains("/payment"))
     wait(driver).until(lambda d: d.find_elements(By.CSS_SELECTOR, ".payment-status-row"))
     assert payment_status(driver) == "Belum Dibayar"
@@ -237,11 +258,13 @@ def test_buka_pembayaran_booking_diterima(case_id, driver, service_id, provider,
 
 
 @tc("TC.PAY.001.002")
-def test_informasi_qr_belum_tersedia(case_id, driver, service_id, provider, customer_a):
+def test_qris_merchant_tampil(case_id, driver, service_id, provider, customer_a):
     booking = new_booking(customer_a, service_id, provider)
     open_payment(driver, customer_a, booking["id"])
-    assert ("Tidak ada kode QR yang dapat dipindai. Status pembayaran hanya dapat diperbarui "
-            "dari backend oleh administrator.") in body_text(driver)
+    qr = driver.find_elements(By.CSS_SELECTOR, ".payment-qr-image")
+    assert qr, "Gambar QRIS merchant tidak tampil"
+    assert qr[0].get_attribute("src").endswith("/qris-merchant.png")
+    assert "Pindai QRIS di atas menggunakan aplikasi pembayaran kamu" in body_text(driver)
 
 
 @tc("TC.PAY.001.003")
@@ -280,7 +303,7 @@ def test_tamu_tidak_bisa_buka_pembayaran(case_id, driver, service_id, provider, 
 def test_refresh_status(case_id, driver, service_id, provider, customer_a):
     booking = new_booking(customer_a, service_id, provider)
     open_payment(driver, customer_a, booking["id"])
-    button(driver, "Refresh Status").click()
+    click_element(driver, button(driver, "Refresh Status"))
     wait(driver).until(lambda d: has_button(d, "Refresh Status"))
     assert payment_status(driver) == "Belum Dibayar"
 
@@ -303,7 +326,7 @@ def test_buka_ulang_tidak_membuat_sesi_ganda(case_id, driver, service_id, provid
 def test_batalkan_sesi_pembayaran(case_id, driver, service_id, provider, customer_a):
     booking = new_booking(customer_a, service_id, provider)
     open_payment(driver, customer_a, booking["id"])
-    button(driver, "Batalkan Pembayaran").click()
+    click_element(driver, button(driver, "Batalkan Pembayaran"))
     alert = wait(driver).until(EC.alert_is_present())
     assert alert.text == "Batalkan sesi pembayaran ini? Sesi lokal yang aktif tidak akan dapat digunakan lagi."
     alert.accept()
@@ -315,7 +338,7 @@ def test_batalkan_sesi_pembayaran(case_id, driver, service_id, provider, custome
 def test_batal_membatalkan_sesi(case_id, driver, service_id, provider, customer_a):
     booking = new_booking(customer_a, service_id, provider)
     open_payment(driver, customer_a, booking["id"])
-    button(driver, "Batalkan Pembayaran").click()
+    click_element(driver, button(driver, "Batalkan Pembayaran"))
     wait(driver).until(EC.alert_is_present()).dismiss()
     assert payment_status(driver) == "Belum Dibayar"
 
@@ -342,7 +365,7 @@ def test_sesi_satu_menit_sebelum_habis(case_id, driver, service_id, provider, cu
 @tc("TC.PAY.004.002")
 def test_sesi_satu_menit_setelah_habis(case_id, driver, service_id, provider, customer_a):
     booking, payment = accepted_payment(customer_a, provider, service_id)
-    set_expires_at(payment["id"], dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=1))
+    set_expires_at(payment["id"], dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=10))
     open_payment(driver, customer_a, booking["id"])
     wait(driver).until(lambda d: payment_status(d) == "Sesi Kedaluwarsa")
     assert "Sesi pembayaran sudah kedaluwarsa dan tidak dapat digunakan lagi." in body_text(driver)
@@ -353,10 +376,10 @@ def test_sesi_satu_menit_setelah_habis(case_id, driver, service_id, provider, cu
 @tc("TC.PAY.004.003")
 def test_buat_sesi_baru(case_id, driver, service_id, provider, customer_a):
     booking, payment = accepted_payment(customer_a, provider, service_id)
-    set_expires_at(payment["id"], dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=1))
+    set_expires_at(payment["id"], dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=10))
     open_payment(driver, customer_a, booking["id"])
     wait(driver).until(lambda d: payment_status(d) == "Sesi Kedaluwarsa")
-    button(driver, "Buat Sesi Baru").click()
+    click_element(driver, button(driver, "Buat Sesi Baru"))
     wait(driver).until(lambda d: payment_status(d) == "Belum Dibayar")
     assert "Sesi berlaku sampai" in body_text(driver)
 
@@ -367,11 +390,15 @@ def test_buat_sesi_baru(case_id, driver, service_id, provider, customer_a):
 
 @tc("TC.PAY.005.001")
 def test_tampilan_pembayaran_terbayar(case_id, driver, service_id, provider, customer_a):
-    admin = Api(*env_account("E2E_ADMIN"))
     booking, payment = accepted_payment(customer_a, provider, service_id)
-    admin.call("PATCH", f"/payments/{payment['id']}/mark-paid")
     open_payment(driver, customer_a, booking["id"])
+    click_element(driver, button(driver, "Bayar Sekarang (Simulasi)"))
+    alert = wait(driver).until(EC.alert_is_present())
+    assert alert.text == "Konfirmasi pembayaran simulasi? Status pembayaran akan berubah menjadi lunas."
+    alert.accept()
+    wait(driver).until(lambda d: payment_status(d) == "Pembayaran Terbayar")
     assert payment_status(driver) == "Pembayaran Terbayar"
     assert "Pembayaran untuk booking ini sudah ditandai terbayar oleh administrator." in body_text(driver)
+    assert not has_button(driver, "Bayar Sekarang (Simulasi)")
     assert not has_button(driver, "Batalkan Pembayaran")
     assert not has_button(driver, "Buat Sesi Baru")

@@ -3,12 +3,12 @@ PBI-22 / TPR-22: Verifikasi Pembayaran (sheet Excel "Payment & Transaction"). Pe
 
 Satu fungsi tes = satu Case ID di Excel (lihat nama tes di output `pytest -v`).
 
-Catatan: halaman /admin/payments/verification masih tampilan statis dan belum tersambung ke
-API kasus (dependensi TPR-110). Jadi yang diuji lewat UI baru akses halaman dan tampilan
-kosongnya. Skenario daftar/catat/ubah status/tutup/duplikat/audit log belum bisa diuji
-lewat browser (lihat bagian "Tidak dimasukkan" di draf Excel).
-
-Tes ini hanya membaca halaman, tidak membuat data.
+Flow terbaru yang diuji:
+- Admin melihat antrean payment aktual.
+- Admin melihat ringkasan status pembayaran.
+- Akses non-admin tetap ditolak.
+Kasus verifikasi dibuat dari payment yang membutuhkan pemeriksaan dan dikelola
+melalui status kasus pada halaman admin.
 
 Jalankan:  pytest test_tpr22_payment_verification.py -v
 """
@@ -106,17 +106,17 @@ def open_as_admin(driver):
 def test_admin_buka_antrean(case_id, driver):
     open_as_admin(driver)
     text = body_text(driver)
-    for label in ("Total Kasus", "Menunggu Pemeriksaan", "Sedang Diperiksa", "Selesai", "Kasus Duplikat"):
+    for label in ("Total Pembayaran", "Menunggu Verifikasi", "Sudah Lunas", "Sesi Tidak Aktif"):
         assert label in text, f"Ringkasan '{label}' tidak tampil"
 
 
 @tc("TC.PAYVER.001.002")
-def test_tampilan_antrean_belum_tersedia(case_id, driver):
+def test_tampilan_antrean_pembayaran(case_id, driver):
     open_as_admin(driver)
     text = body_text(driver)
-    assert "Daftar Kasus Verifikasi" in text
-    assert "Antrean belum tersedia" in text
-    assert "Kasus akan muncul setelah backend menyediakan data antrean pemeriksaan pembayaran." in text
+    assert "Daftar Pembayaran Customer" in text
+    assert "KONTROL PEMBAYARAN" in text
+    assert "Antrean belum tersedia" not in text
 
 
 @tc("TC.PAYVER.001.003")
